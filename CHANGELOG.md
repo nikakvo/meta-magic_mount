@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.1
+
+- Help page: the command line examples now use su -c with full paths, tested on a device.
+
+---
+
 ## v1.2.0
 
 - Conflicts card: shows which modules ship the same file and which copy is used; one tap lets the other module win.
