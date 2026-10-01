@@ -381,23 +381,20 @@
 <!-- 9 -->
 <h2 class="sec-title" id="cli"><span class="n">9</span>Command line</h2>
 <div class="box">
-  <p>Everything the interface shows is plain text, so it can be read from any root shell:</p>
-  <pre>D=/data/adb/magic_mount
-
-cat $D/status           <span class="cm"># last run: boot id, result, exit code, timing, start time</span>
-cat $D/status.old       <span class="cm"># the same for the boot that wrote mm.log.old</span>
-cat $D/boot_state       <span class="cm"># each module as the last run saw it</span>
-cat $D/skip_mount.list  <span class="cm"># modules switched off here</span>
-cat $D/mm.conf          <span class="cm"># configuration</span>
-cat $D/mm.log           <span class="cm"># this boot</span>
-cat $D/mm.log.old       <span class="cm"># previous boot</span>
-
-<span class="cm"># switch a module off / on, as the interface does</span>
-touch /data/adb/modules/&lt;id&gt;/skip_mount &amp;&amp; echo &lt;id&gt; &gt;&gt; $D/skip_mount.list
-rm /data/adb/modules/&lt;id&gt;/skip_mount &amp;&amp; sed -i '/^&lt;id&gt;$/d' $D/skip_mount.list</pre>
+  <p>Everything the interface shows is plain text, so it can be read from a terminal (for example Termux) with root:</p>
+  <pre>su -c 'cat /data/adb/magic_mount/status'          <span class="cm"># last run: boot id, result, exit code, timing, start time</span>
+su -c 'cat /data/adb/magic_mount/status.old'      <span class="cm"># the same for the boot that wrote mm.log.old</span>
+su -c 'cat /data/adb/magic_mount/boot_state'      <span class="cm"># each module as the last run saw it</span>
+su -c 'cat /data/adb/magic_mount/skip_mount.list' <span class="cm"># modules switched off here</span>
+su -c 'cat /data/adb/magic_mount/mm.conf'         <span class="cm"># configuration</span>
+su -c 'cat /data/adb/magic_mount/mm.log'          <span class="cm"># this boot</span>
+su -c 'cat /data/adb/magic_mount/mm.log.old'      <span class="cm"># previous boot</span></pre>
+  <p>Keep the quotes: everything after <code>su -c</code> must be one argument.</p>
 
   <h3>The mount program</h3>
-  <pre>/data/adb/modules/meta-mm/mmd --help
+  <p><code>mmd</code> is not on the system path; use its full path:</p>
+  <pre>su -c '/data/adb/modules/meta-mm/mmd --version'
+su -c '/data/adb/modules/meta-mm/mmd --help'
 
   -m, --module-dir DIR    module directory
   -t, --temp-dir DIR      work directory (default: automatic)
@@ -411,12 +408,15 @@ rm /data/adb/modules/&lt;id&gt;/skip_mount &amp;&amp; sed -i '/^&lt;id&gt;$/d' $
   -n, --dry-run           mount nothing; print the mount order
                           and the conflicts of the next boot
   -V, --version           print the version</pre>
-  <p><code>--dry-run</code> is safe at any time. It never writes the log file; its report is one tab-separated line per item:</p>
-  <pre>/data/adb/modules/meta-mm/mmd --dry-run
+  <p><code>--dry-run</code> is safe at any time. It mounts nothing and never writes the log file; its report is one tab-separated line per item:</p>
+  <pre>su -c '/data/adb/modules/meta-mm/mmd --dry-run'
 
-order     1  module-a  installed      <span class="cm"># mount order; "update" = installed update</span>
+mmd-dry-run  1  v1.2.0
+order     1  module-a  installed      <span class="cm"># every enabled module, in mount order</span>
+order     2  module-b  update         <span class="cm"># "update" = installed, applies at reboot</span>
 conflict  file  system/etc/hosts  module-a  module-b
-result    ok  12  1                   <span class="cm"># ok | empty | error, modules, conflicts</span></pre>
+result    ok  2  1                    <span class="cm"># ok | empty | error, modules, conflicts</span></pre>
+  <p>The order lists every enabled module, also those with nothing to mount (they simply take no part). IDs are sorted byte by byte, so IDs that start with a capital letter come first.</p>
   <p>Conflict kinds: <code>file</code> (different content), <code>same</code> (identical), <code>type</code> (file, folder or link against each other), <code>replace</code> (a folder emptied by the first module). The first module named wins.</p>
   <div class="note warn">
     Do not run <code>mmd</code> without <code>--dry-run</code> on a running system: a second run would mount everything a second time. <code>metamount.sh</code> refuses to run twice during the same boot for this reason. Command-line options override the config file.
