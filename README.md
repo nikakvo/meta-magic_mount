@@ -130,36 +130,12 @@ users of the module notice.
 
 ### Releasing
 
-A release build from a clean tag also writes `build/update.json`. The module's
-`updateJson` points at the latest release
-(`releases/latest/download/update.json`), so a release carries three files:
-
-```
-build/meta-magic_mount-vX.Y.Z-release.zip
-build/update.json
-build/changelog.md
-```
+The module checks for updates through `update.json` in the repository root
+(`updateJson` points at its raw URL on `main`). A release build from a clean
+tag writes a ready `build/update.json`.
 
 1. Add a `## vX.Y.Z` section at the top of `CHANGELOG.md`, commit, `git tag vX.Y.Z`.
-2. `./build.sh`, test the zip on a device.
-3. `git push && git push origin vX.Y.Z`.
-4. Create the GitHub release for the tag: paste `build/changelog.md` as the
-   notes and upload all three files. Do not mark it as pre-release (the
-   manager only sees the latest full release).
-
-### Tests
-
-`build.sh` runs both before building:
-
-```sh
-make -C src check          # mmd --dry-run on sample module folders (no root)
-cd webui && pnpm test      # pure WebUI logic (src/lib/parse.js)
-```
-
-WebUI development in a desktop browser with fake data:
-
-```sh
-cd webui && pnpm dev    # http://localhost:5173/?mock=ok|pending|stale|failed|fresh|many|conflicts
-```
-
-Pure logic lives in `webui/src/lib/parse.js` (no device access).
+2. `./build.sh` (set `VERSION_CODE=…` to choose the versionCode), test the zip.
+3. Create the GitHub release `vX.Y.Z`: paste `build/changelog.md` as the
+   notes and upload `build/meta-magic_mount-vX.Y.Z-release.zip`.
+4. Replace `update.json` in the repository root with `build/update.json`.

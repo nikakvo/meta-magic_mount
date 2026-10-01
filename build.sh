@@ -9,8 +9,9 @@ NC='\033[0m'
 # Configuration
 MODULE_ID="meta-mm"
 REPO_URL="https://github.com/nikakvo/meta-magic_mount"
-# Always the newest full release; the release must carry update.json
-UPDATE_JSON_URL="$REPO_URL/releases/latest/download/update.json"
+RAW_URL="https://raw.githubusercontent.com/nikakvo/meta-magic_mount/main"
+# update.json lives in the repository root (copy build/update.json there)
+UPDATE_JSON_URL="$RAW_URL/update.json"
 SKIP_WEBUI=0
 SKIP_TESTS=0
 
@@ -175,7 +176,7 @@ generate_update_json() {
   "version": "$VERSION",
   "versionCode": $version_code,
   "zipUrl": "$REPO_URL/releases/download/$VERSION/$zip_name",
-  "changelog": "$REPO_URL/releases/latest/download/changelog.md"
+  "changelog": "$RAW_URL/CHANGELOG.md"
 }
 EOF
     log_info "update.json for $VERSION (code $version_code) -> build/update.json"
