@@ -7,6 +7,8 @@ on the device with bind mounts over an in-memory (tmpfs) mirror. The real
 partitions are never changed: turn a module off, reboot, and its files are
 gone.
 
+<p align="center"><img src="meta-magic_mount.jpg" width="320" alt="Magic Mount WebUI"></p>
+
 ## Features
 
 - **Conflicts card** — shows which modules ship the same file and which copy
