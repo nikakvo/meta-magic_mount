@@ -43,8 +43,8 @@ are kept across updates and reinstalls.
 Original Magic Mount metamodule and C core by **7a72**, with contributions
 from backslashxx, lamprose, Prslc and others. The original repository and
 update server no longer exist; this project continues from the surviving copy
-at `github.com/hamjin/meta-magic_mount` (upstream `62ae7f0`), with the full
-history kept. Maintained by **Tears Burn (nikakvo)**.
+at `github.com/hamjin/meta-magic_mount` (upstream `62ae7f0`). Maintained by
+**Tears Burn (nikakvo)**.
 
 Licensed under the [GNU General Public License v3.0](LICENSE).
 
@@ -109,11 +109,12 @@ Needs `git`, `make`, `zip`, `zig` 0.14+ (`pip install ziglang` plus a `zig`
 wrapper running `python3 -m ziglang "$@"`), `node` and `pnpm` 10.
 
 ```sh
-cd ~/meta-magic_mount
-git add -A && git commit -m "..."   # uncommitted changes make the version "-dirty"
-git tag v1.2.0
-./build.sh                           # WebUI + tests + binaries -> build/*-release.zip
+git clone https://github.com/nikakvo/meta-magic_mount.git
+cd meta-magic_mount
+./build.sh            # WebUI + tests + binaries -> build/*-release.zip
 ```
+
+The version comes from the latest git tag; uncommitted changes add `-dirty`.
 
 | Option | |
 |--------|-|
@@ -139,3 +140,20 @@ tag writes a ready `build/update.json`.
 3. Create the GitHub release `vX.Y.Z`: paste `build/changelog.md` as the
    notes and upload `build/meta-magic_mount-vX.Y.Z-release.zip`.
 4. Replace `update.json` in the repository root with `build/update.json`.
+
+### Tests
+
+`build.sh` runs both before building:
+
+```sh
+make -C src check          # mmd --dry-run on sample module folders (no root)
+cd webui && pnpm test      # pure WebUI logic (src/lib/parse.js)
+```
+
+WebUI development in a desktop browser with fake data:
+
+```sh
+cd webui && pnpm dev    # http://localhost:5173/?mock=ok|pending|stale|failed|fresh|many|conflicts
+```
+
+Pure logic lives in `webui/src/lib/parse.js` (no device access).
