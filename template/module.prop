@@ -1,0 +1,7 @@
+id=id
+metamodule=0
+name=Magic Mount
+version=version
+versionCode=versionCode
+author=7a72, Tears Burn
+description=Mounts the system files of your other modules at boot (Magic Mount metamodule).

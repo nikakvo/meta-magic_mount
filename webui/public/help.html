@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Magic Mount — Help</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="stylesheet" href="https://mui.kernelsu.org/internal/insets.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink:#0f1830;--plate:#16213f;--sheet:#1e2b50;--rule:#2a3a66;
+      --chalk:#e6eaf5;--fog:#8f9bbb;--brass:#f2b544;--brass-dim:#f2b54426;
+      --ok:#5fd4a6;--ok-dim:#5fd4a626;--bad:#ff7070;--bad-dim:#ff707026;
+      --p-system:#6fa8ff;--p-vendor:#ff8a65;--p-product:#b69cff;
+      --p-system_ext:#4fd1c5;--p-odm:#f07fb0;--p-extra:#c9cfdf;
+      --f-display:"Roboto Condensed","sans-serif-condensed","Arial Narrow",sans-serif;
+      --f-body:Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+      --f-mono:"Roboto Mono","JetBrains Mono",ui-monospace,monospace;
+      --top:var(--window-inset-top, env(safe-area-inset-top, 0px));
+      --bottom:var(--window-inset-bottom, env(safe-area-inset-bottom, 0px));
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        color-scheme: light;
+        --ink:#eef1f8;--plate:#ffffff;--sheet:#e6eaf4;--rule:#d3d9ea;
+        --chalk:#131b33;--fog:#58638a;--brass:#b8791c;--brass-dim:#b8791c1f;
+        --ok:#178a5f;--ok-dim:#178a5f1f;--bad:#cf3b3b;--bad-dim:#cf3b3b1f;
+        --p-system:#2f6fd6;--p-vendor:#d85a33;--p-product:#7b5ad6;
+        --p-system_ext:#16978c;--p-odm:#c8467f;--p-extra:#6b7592;
+      }
+    }
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    html{scroll-padding-top:calc(var(--top) + 64px);}
+    body{
+      background:var(--ink);color:var(--chalk);font-family:var(--f-body);
+      font-size:13px;line-height:1.6;min-height:100vh;
+      padding-bottom:calc(var(--bottom) + 32px);
+      padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);
+    }
+
+    .header{
+      position:sticky;top:0;z-index:10;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:10px 16px;padding-top:calc(var(--top) + 10px);
+      background:var(--plate);border-bottom:1px solid var(--rule);
+    }
+    .header-left{display:flex;align-items:center;gap:10px;min-width:0;}
+    .logo{width:30px;height:30px;flex:none;overflow:visible;}
+    .logo .arc{fill:none;stroke-width:2.2;stroke-linecap:round;}
+    .logo .arc.thin{stroke-width:1.6;}
+    .logo .ring{transform-origin:20px 20px;}
+    .logo .r1{animation:spin 14s linear infinite;}
+    .logo .r2{animation:spin 9s linear infinite reverse;}
+    .logo .r3{animation:spin 5s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @media (prefers-reduced-motion: reduce){.logo .ring{animation:none;}}
+    .header-title{font-family:var(--f-display);font-size:19px;font-weight:700;line-height:1.1;}
+    .header-sub{font-size:10.5px;color:var(--fog);}
+    .back-btn{
+      display:flex;align-items:center;gap:4px;flex:none;
+      padding:7px 12px;border-radius:10px;border:1px solid var(--rule);
+      background:var(--sheet);color:var(--chalk);font:inherit;font-size:11.5px;font-weight:500;cursor:pointer;
+    }
+    .back-btn:active{opacity:.6;}
+    .back-btn svg{width:13px;height:13px;}
+
+    main{max-width:720px;margin:0 auto;padding:0 10px;}
+
+    .toc{margin-top:12px;background:var(--plate);border:1px solid var(--rule);border-radius:16px;padding:12px 14px;}
+    .toc-title{font-family:var(--f-display);font-size:11.5px;font-weight:600;color:var(--fog);margin-bottom:4px;}
+    .toc a{display:block;padding:3px 0;color:var(--chalk);text-decoration:none;font-size:12.5px;}
+    .toc a span{display:inline-block;min-width:22px;color:var(--brass);font-family:var(--f-mono);font-size:11px;}
+
+    .sec-title{
+      display:flex;align-items:center;gap:8px;
+      padding:22px 4px 8px;font-family:var(--f-display);font-size:16px;font-weight:700;
+    }
+    .sec-title .n{font-family:var(--f-mono);font-size:11px;font-weight:500;color:var(--brass);}
+
+    .box{position:relative;background:var(--plate);border:1px solid var(--rule);border-radius:16px;padding:12px 14px;margin-bottom:10px;overflow:hidden;}
+    .box p{margin-bottom:9px;}
+    .box p:last-child{margin-bottom:0;}
+    .box h3{font-family:var(--f-display);font-size:13.5px;font-weight:600;margin:14px 0 4px;}
+    .box h3:first-child{margin-top:0;}
+    .box ul{margin:6px 0 9px 18px;}
+    .box ul:last-child{margin-bottom:0;}
+    .box li{margin-bottom:4px;}
+    strong{font-weight:600;}
+    em{font-style:normal;color:var(--brass);}
+    .fog{color:var(--fog);}
+    code{
+      font-family:var(--f-mono);font-size:11px;padding:1px 5px;border-radius:5px;
+      background:var(--sheet);border:1px solid var(--rule);word-break:break-word;
+    }
+
+    pre{
+      margin:8px 0;padding:10px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      background:var(--ink);border:1px solid var(--rule);border-radius:10px;
+      font-family:var(--f-mono);font-size:10.5px;line-height:1.6;
+    }
+    pre:last-child{margin-bottom:0;}
+    pre .cm{color:var(--fog);}
+
+    .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:6px 0;}
+    table{width:100%;border-collapse:collapse;font-size:11.5px;}
+    th{text-align:left;padding:6px 10px 6px 0;color:var(--fog);font-weight:500;font-size:10.5px;border-bottom:1px solid var(--rule);}
+    td{padding:7px 10px 7px 0;border-bottom:1px solid var(--rule);vertical-align:top;}
+    tr:last-child td{border-bottom:none;}
+    td:first-child{white-space:nowrap;font-family:var(--f-mono);font-size:11px;}
+
+    .note{margin:9px 0;padding:8px 11px;border-left:3px solid var(--brass);background:var(--brass-dim);border-radius:0 10px 10px 0;}
+    .note:last-child{margin-bottom:0;}
+    .note.ok{border-left-color:var(--ok);background:var(--ok-dim);}
+    .note.warn{border-left-color:var(--bad);background:var(--bad-dim);}
+
+    /* small replicas of interface elements */
+    .chip{display:inline-block;padding:0 7px;border-radius:999px;border:1px solid currentColor;font-size:10.5px;font-weight:500;white-space:nowrap;}
+    .c-ok{color:var(--ok);} .c-brass{color:var(--brass);} .c-bad{color:var(--bad);}
+    .bar{display:inline-block;width:5px;height:12px;border-radius:2px;vertical-align:-1px;margin-right:6px;}
+    .strata-demo{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 4px;font-size:11.5px;font-weight:500;}
+    .strata-demo span{display:flex;align-items:center;}
+    .p-system{color:var(--p-system);} .p-vendor{color:var(--p-vendor);} .p-product{color:var(--p-product);}
+    .p-system_ext{color:var(--p-system_ext);} .p-odm{color:var(--p-odm);} .p-extra{color:var(--p-extra);}
+    .bar.p-system{background:var(--p-system);} .bar.p-vendor{background:var(--p-vendor);} .bar.p-product{background:var(--p-product);}
+    .bar.p-system_ext{background:var(--p-system_ext);} .bar.p-odm{background:var(--p-odm);} .bar.p-extra{background:var(--p-extra);}
+
+    .footer{padding:24px 16px 4px;text-align:center;font-size:10.5px;color:var(--fog);}
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
+      <g class="ring r1">
+        <circle cx="20" cy="20" r="17.5" fill="none" stroke="var(--rule)" stroke-width="1"/>
+        <circle cx="20" cy="20" r="17.5" class="arc" stroke="var(--p-system)" stroke-dasharray="22 5.5"/>
+        <circle cx="20" cy="2.5" r="1.9" fill="var(--brass)"/>
+      </g>
+      <g class="ring r2"><circle cx="20" cy="20" r="13" class="arc" stroke="var(--p-vendor)" stroke-dasharray="14 6.4"/></g>
+      <g class="ring r3"><circle cx="20" cy="20" r="9.2" class="arc thin" stroke="var(--p-product)" stroke-dasharray="4 3.2"/></g>
+      <rect x="14.2" y="14.6" width="11.6" height="2.4" rx="1.2" fill="var(--p-system)"/>
+      <rect x="14.2" y="18.8" width="11.6" height="2.4" rx="1.2" fill="var(--p-vendor)"/>
+      <rect x="14.2" y="23" width="11.6" height="2.4" rx="1.2" fill="var(--brass)"/>
+    </svg>
+    <div>
+      <div class="header-title">Help</div>
+      <div class="header-sub">Magic Mount</div>
+    </div>
+  </div>
+  <button class="back-btn" type="button" onclick="goBack()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    Back
+  </button>
+</header>
+
+<main>
+
+<nav class="toc" aria-label="Contents">
+  <div class="toc-title">Contents</div>
+  <a href="#what"><span>1</span>What this module does</a>
+  <a href="#boot"><span>2</span>What happens at boot</a>
+  <a href="#rules"><span>3</span>How module files are applied</a>
+  <a href="#modules"><span>4</span>The Modules tab</a>
+  <a href="#pending"><span>5</span>Changes after reboot</a>
+  <a href="#config"><span>6</span>The Config tab</a>
+  <a href="#logs"><span>7</span>The Logs tab</a>
+  <a href="#install"><span>8</span>Install, update &amp; uninstall</a>
+  <a href="#cli"><span>9</span>Command line</a>
+  <a href="#trouble"><span>10</span>Troubleshooting</a>
+  <a href="#files"><span>11</span>File layout</a>
+</nav>
+
+<!-- 1 -->
+<h2 class="sec-title" id="what"><span class="n">1</span>What this module does</h2>
+<div class="box">
+  <p>Most root modules change the system by shipping files: a binary in <code>system/bin</code>, a library in <code>vendor/lib64</code>, an app in <code>product/app</code>. Those files have to be placed over the real, read-only partitions at every boot, without touching the partitions themselves. That job is called <strong>mounting</strong>, and on KernelSU it is done by a <strong>metamodule</strong>.</p>
+  <p>Magic Mount is such a metamodule. At boot it takes the files of every other module and makes them appear in <code>/system</code>, <code>/vendor</code>, <code>/product</code>, <code>/system_ext</code>, <code>/odm</code> and any extra partitions you add. Nothing on the real partitions changes: turn a module off, reboot, and its files are gone.</p>
+  <div class="note">
+    Only one metamodule can be active. On current KernelSU, modules are installed without one but their files are not mounted, so every module that ships system files depends on it.
+  </div>
+  <h3>Works with</h3>
+  <ul>
+    <li>KernelSU and its forks, such as SukiSU-Ultra</li>
+    <li>APatch (without <em>Unmount for hidden apps</em>, which needs KernelSU)</li>
+    <li>arm64, armv7 and x86_64 devices; the installer picks the right binary</li>
+  </ul>
+  <p>Magisk is not supported. It mounts modules itself, and the installer refuses to install there.</p>
+  <h3>Why "magic"</h3>
+  <p>The name comes from Magisk's classic technique. Each module file is <strong>bind-mounted</strong> over its target. When a module adds a file that does not exist on the device, the folder around it is rebuilt as a copy in memory (tmpfs) that mirrors the original contents plus the new file, and that copy is put in place. The result behaves like a normal system folder, and it is gone at the next reboot.</p>
+</div>
+
+<!-- 2 -->
+<h2 class="sec-title" id="boot"><span class="n">2</span>What happens at boot</h2>
+<div class="box">
+  <p>KernelSU runs Magic Mount's <code>metamount.sh</code> early in boot, in <em>post-fs-data</em>. By then module updates have been applied, removed modules are gone, and every module's <code>post-fs-data.sh</code> and <code>system.prop</code> have run. In order, the script:</p>
+  <ul>
+    <li>moves the previous boot's log to <code>mm.log.old</code></li>
+    <li>re-applies the modules you switched off in the Modules tab (see <a href="#pending" style="color:var(--brass)">5</a>)</li>
+    <li>records the state of every module and a copy of the configuration, so the interface can later tell what this boot actually did</li>
+    <li>runs the mount program <code>mmd</code>, which does the real work and writes <code>mm.log</code></li>
+    <li>records the result: success or failure, exit code, when it ran and how long it took</li>
+    <li>on KernelSU, tells the system that modules are mounted</li>
+  </ul>
+  <p>At that point Android has not set the clock yet; on many phones it still shows a date from long ago. Times are therefore measured from the moment the phone started. Later, once the phone has finished starting and the clock is set, <code>service.sh</code> adds the real start time of this boot to the record. It waits at most 10 minutes; without a network the clock may stay unset, and then no time is recorded for that boot.</p>
+  <div class="note ok">
+    Magic Mount never blocks boot. If mounting fails, or the program is missing, the phone still starts normally. Module files are then simply not applied, and the Last boot card says so.
+  </div>
+  <p><code>mmd</code> is not a background service. It runs once, usually for a fraction of a second, and exits. There is no daemon and no process ID to watch. The Last boot card shows when it ran and how long it took.</p>
+</div>
+
+<!-- 3 -->
+<h2 class="sec-title" id="rules"><span class="n">3</span>How module files are applied</h2>
+<div class="box">
+  <h3>Partitions</h3>
+  <div class="strata-demo">
+    <span class="p-system"><i class="bar p-system"></i>system</span>
+    <span class="p-vendor"><i class="bar p-vendor"></i>vendor</span>
+    <span class="p-product"><i class="bar p-product"></i>product</span>
+    <span class="p-system_ext"><i class="bar p-system_ext"></i>system_ext</span>
+    <span class="p-odm"><i class="bar p-odm"></i>odm</span>
+    <span class="p-extra"><i class="bar p-extra"></i>extra</span>
+  </div>
+  <p>These colors are used throughout the interface. Modules keep their files under <code>system/</code>: <code>system/bin/x</code> ends up in <code>/system/bin/x</code>, and <code>system/vendor/lib/y.so</code> in <code>/vendor/lib/y.so</code>. When a module is installed, Magic Mount adds the shortcut links (<code>vendor → system/vendor</code> and so on) that some modules expect.</p>
+  <p><strong>Extra partitions</strong>, such as <code>mi_ext</code> on Xiaomi or <code>my_stock</code> on OnePlus, are read from the module's top folder (<code>&lt;module&gt;/mi_ext/…</code>). They are only handled when listed in Config and when the partition exists on the device.</p>
+
+  <h3>Markers a module can use</h3>
+  <div class="table-wrap"><table>
+    <tr><th>marker</th><th>effect</th></tr>
+    <tr><td>skip_mount</td><td>File in the module folder: none of its files are mounted. The module itself stays enabled, so its scripts still run.</td></tr>
+    <tr><td>disable</td><td>Set by the manager when a module is disabled: nothing is mounted.</td></tr>
+    <tr><td>remove</td><td>Set by the manager when a module is uninstalled: nothing is mounted.</td></tr>
+    <tr><td>.replace</td><td>File inside a folder: that folder <strong>replaces</strong> the system folder instead of being merged into it. The <code>trusted.overlay.opaque</code> attribute has the same effect.</td></tr>
+    <tr><td>whiteout</td><td>An empty character device (0:0) in place of a file hides that file on the system.</td></tr>
+  </table></div>
+
+  <h3>When several modules touch the same folder</h3>
+  <p>Their files are merged. Modules installed with KernelSU's own layout (<code>vendor/</code> next to <code>system/</code>, with a link <code>system/vendor → ../vendor</code>) are merged together with modules that keep everything under <code>system/</code>.</p>
+
+  <h3 id="order">When two modules ship the same file</h3>
+  <p>Only one copy can be mounted. Magic Mount goes through the modules in a fixed <strong>mount order</strong>, and the first module that ships a path wins it:</p>
+  <ul>
+    <li>first the <strong>preferred modules</strong>, in the order you set (Conflicts card or Config)</li>
+    <li>then every other module, sorted by module ID</li>
+  </ul>
+  <p>The order does not depend on install order or on the file system, so the same module wins at every boot. The same rule decides when one module ships a file and another ships a folder or a link with that name. A <code>.replace</code> folder is honored whichever module ships it: the folder's original files are hidden, and files other modules add to it still show.</p>
+  <p>Every such case is a <strong>conflict</strong>. The Conflicts card lists them, and each boot's log names them as warnings. Two modules shipping identical files is harmless and only counted.</p>
+</div>
+
+<!-- 4 -->
+<h2 class="sec-title" id="modules"><span class="n">4</span>The Modules tab</h2>
+<div class="box">
+  <h3>Header</h3>
+  <p>The installed version and the root implementation (KernelSU or APatch) as recorded at install time.</p>
+
+  <h3>Last boot card</h3>
+  <p>The colored edge shows the result at a glance:</p>
+  <ul>
+    <li><span class="c-ok"><strong>green</strong></span> — everything mounted, e.g. "15 entries mounted from 5 modules. No failures."</li>
+    <li><span class="c-brass"><strong>amber</strong></span> — mounted, but some entries failed or were skipped. Open Logs.</li>
+    <li><span class="c-bad"><strong>red</strong></span> — mounting failed, the mount program is missing, or Magic Mount <strong>did not run during this boot</strong></li>
+    <li><span class="fog"><strong>grey</strong></span> — nothing to mount, or Magic Mount has not run yet (just installed)</li>
+  </ul>
+  <p>The line below it, "Ran 7.3 s after boot, took 0.12 s", is measured on the device's uptime clock. It only appears when the record belongs to the current boot. Modules that caused failures are listed by ID.</p>
+
+  <h3>Module list</h3>
+  <p>Only modules that ship files for a handled partition are listed; modules that only run scripts have nothing to mount. Each row shows:</p>
+  <ul>
+    <li>the color bands and names of the partitions it touches</li>
+    <li>the module name and ID</li>
+    <li>a <strong>switch</strong>: off stops mounting this module's files, but leaves the module enabled. Its scripts, properties and sepolicy still apply. Useful for finding which module breaks something, without losing its settings.</li>
+    <li>a pending-change label, if any (see <a href="#pending" style="color:var(--brass)">5</a>)</li>
+    <li>a note when needed:
+      <ul>
+        <li><strong>Disabled in the manager</strong> / <strong>Will be removed at the next reboot</strong>. The switch is locked; change it in the manager.</li>
+        <li><strong>Switched off by a skip_mount file this app did not create</strong>. The module's author ships it switched off, or it was set by hand. Switching it on deletes that file.</li>
+      </ul>
+    </li>
+  </ul>
+  <p>A module whose update is waiting is shown with the files of the new version.</p>
+
+  <h3>Conflicts card</h3>
+  <p>Below the list. It shows which modules ship the same files, checked against what the <strong>next boot</strong> will mount: switches, disabled modules and installed updates are already taken into account. The check runs <code>mmd --dry-run</code>, which reads the modules but mounts nothing.</p>
+  <ul>
+    <li><strong>A is used instead of B</strong> — B's copies of these files are ignored. <em>Show files</em> lists them; entries marked <em>file, folder or link</em> are a file in one module and a folder or link in the other.</li>
+    <li><strong>Use B instead</strong> — puts B first in the mount order (Preferred modules), so B wins all its conflicts from the next boot on. This writes the configuration, so the "apply after reboot" line appears.</li>
+    <li><strong>A empties a folder</strong> — A replaces a folder another module adds files to. Both still apply.</li>
+    <li><strong>Clear order</strong> — back to plain module ID order.</li>
+  </ul>
+  <p>The card also warns when <strong>another module that mounts module files</strong> is installed, such as a second metamodule or mountify. Two of them would mount the same files twice; remove the other one.</p>
+
+  <h3>Reload list</h3>
+  <p>Reads everything again: modules, boot records, configuration and log. Changes made in this interface show up immediately. Reload is for changes made elsewhere while the interface is open, such as disabling a module in the manager, installing an update, or editing a file by hand.</p>
+</div>
+
+<!-- 5 -->
+<h2 class="sec-title" id="pending"><span class="n">5</span>Changes after reboot</h2>
+<div class="box">
+  <p>Mounting happens once, at boot. Switching a module off does not remove files that are already mounted, and switching it on does not add them. Every change waits for the next reboot.</p>
+  <h3>How the interface knows what is pending</h3>
+  <p>At every boot, <code>metamount.sh</code> records which modules were mounted and which configuration was used. The interface compares the current state with that record:</p>
+  <ul>
+    <li><span class="chip c-ok">Mounts after reboot</span> — off (or new) now, on after reboot</li>
+    <li><span class="chip c-brass">Stops mounting after reboot</span> — mounted now, off after reboot</li>
+    <li><span class="chip c-brass">Update installed, new files apply after reboot</span></li>
+  </ul>
+  <p>The line at the bottom counts the module changes, and a separate line appears when the configuration was changed. A dot on the Modules tab shows the same thing from other tabs.</p>
+  <div class="note ok">
+    Switch something off and back on, and the label disappears, because nothing differs from the running boot anymore. The labels stay correct after switching tabs, closing the interface or reloading.
+  </div>
+  <p>Before Magic Mount's first boot there is no record yet. Until then the interface compares with the state from when it was opened.</p>
+  <p>Each boot record carries the kernel's boot ID. If the newest record is from an earlier boot, Magic Mount did not run this time: nothing is mounted, the Last boot card turns red, and no labels are shown.</p>
+
+  <h3>Your choices survive module updates</h3>
+  <p>When the manager updates a module, it replaces the module's folder and the <code>skip_mount</code> file is lost. Magic Mount keeps its own list of the modules you switched off (<code>skip_mount.list</code>) and puts the file back at the next boot, before anything is mounted.</p>
+</div>
+
+<!-- 6 -->
+<h2 class="sec-title" id="config"><span class="n">6</span>The Config tab</h2>
+<div class="box">
+  <div class="table-wrap"><table>
+    <tr><th>setting</th><th>what it does</th></tr>
+    <tr><td>Log detail</td><td><strong>Normal</strong> logs the overview and every problem. <strong>Detailed</strong> logs every file operation; turn it on only for troubleshooting.</td></tr>
+    <tr><td>Unmount for hidden apps</td><td>Registers every mount with KernelSU. Apps for which the manager's <em>Umount modules</em> option is on then see the original system. KernelSU only; not shown on APatch.</td></tr>
+    <tr><td>Preferred modules</td><td>Module IDs, comma-separated. When two modules ship the same file, the one listed first wins; the rest follow by module ID (see <a href="#order" style="color:var(--brass)">3</a>). The Conflicts card fills this in for you.</td></tr>
+    <tr><td>Extra partitions</td><td>Partitions beyond the built-in five, comma-separated, e.g. <code>mi_ext, my_stock</code>. Add one only if a module ships a folder for it.</td></tr>
+    <tr><td>Work directory</td><td>Temporary space used while mounting. Leave it empty: the first writable in-memory location among <code>/mnt/vendor</code>, <code>/mnt</code>, <code>/debug_ramdisk</code> is used, with <code>/dev/.magic_mount</code> as a fallback.</td></tr>
+    <tr><td>Mount name</td><td>The source name these mounts show in <code>/proc/mounts</code>. Keep <code>KSU</code> unless you know why not.</td></tr>
+    <tr><td>Log file</td><td>Where the log goes. The previous boot's log is kept next to it as <code>.old</code>. Empty turns file logging off.</td></tr>
+    <tr><td>Module directory</td><td>Where installed modules live. Only change it if you know why.</td></tr>
+  </table></div>
+  <p>Input is checked before saving: paths must be absolute and must not contain spaces, quotes or <code>#</code>, and partition names and module IDs must be valid. The five built-in partitions and system folders are refused as extra partitions. Problems are marked on the field.</p>
+  <p><strong>Unsaved changes</strong> means the form differs from the file. <strong>Saved changes apply after reboot</strong> means the file differs from the configuration the current boot used. <strong>Reset to defaults</strong> only fills in the form; nothing is written until you save. The file is written in one step, so an interrupted save cannot leave half a file.</p>
+</div>
+
+<!-- 7 -->
+<h2 class="sec-title" id="logs"><span class="n">7</span>The Logs tab</h2>
+<div class="box">
+  <ul>
+    <li><strong>This boot / Previous boot</strong> — <code>mm.log</code> and <code>mm.log.old</code></li>
+    <li><strong>Wrap lines</strong> — wrap long lines instead of scrolling sideways</li>
+    <li><strong>Only warnings and errors</strong> — the quickest way to see what went wrong</li>
+    <li>above the log: when the log was written (the log lines have no times of their own, so this tells the two boots apart), line, warning and error counts, and when it was read. <strong>Refresh</strong> reads the file again; it only changes after a reboot.</li>
+    <li>the written time comes from the boot records, not from the file, whose date is set before the clock is (see <a href="#boot" style="color:var(--brass)">2</a>). When no reliable time exists it is left out rather than shown wrong: for the previous boot right after Magic Mount was installed or updated, or when the clock was not set within 10 minutes of that boot.</li>
+    <li>errors in red, warnings in amber, debug lines dimmed</li>
+  </ul>
+  <p>Each run ends with a summary: modules processed, entries mounted, skipped, whiteouts and failures, plus the modules that failed. The Last boot card is built from it. Very long logs show the last 20000 lines.</p>
+  <p>With <strong>Normal</strong> log detail a boot writes a short log of a few dozen lines; that is expected. <strong>Detailed</strong> logs every file operation and grows to hundreds or thousands of lines.</p>
+  <div class="note">
+    To investigate a problem: Config → Log detail → <strong>Detailed</strong>, reboot, then open Logs. Set it back to Normal afterwards.
+  </div>
+</div>
+
+<!-- 8 -->
+<h2 class="sec-title" id="install"><span class="n">8</span>Install, update &amp; uninstall</h2>
+<div class="box">
+  <h3>Install</h3>
+  <p>Flash the zip in the manager and reboot. The installer detects the root implementation, verifies every file against its checksum, picks the binary for the device's architecture and activates itself as the metamodule. If another metamodule is active, it is marked for removal and replaced at the next reboot.</p>
+  <p>If some modules already contain a <code>skip_mount</code> file that Magic Mount did not create, the installer lists them so nothing stays off unnoticed. It also lists other installed modules that mount module files (a second metamodule, mountify), since two of them would mount the same files twice.</p>
+
+  <h3>Update</h3>
+  <p>Flash the new zip over the old one. The configuration and your switch choices are kept.</p>
+
+  <h3>Installing other modules</h3>
+  <p>While Magic Mount is active, the manager runs its <code>metainstall.sh</code> when installing other modules. It keeps the usual module layout and adds the partition shortcut links. On KernelSU a module can also request <em>hot install</em> (<code>MODULE_HOT_INSTALL_REQUEST=true</code>), which puts it in place and runs it without waiting for a reboot. Its system files are still mounted at the next boot.</p>
+
+  <h3>Uninstall</h3>
+  <p>Uninstalling puts things back the way they were:</p>
+  <ul>
+    <li>it removes only the <code>skip_mount</code> files <strong>Magic Mount created</strong>. Files shipped by module authors are left alone, so those modules stay as their authors intended.</li>
+    <li>it removes the <code>/data/adb/metamodule</code> link if it still points here</li>
+    <li>it deletes its own data: configuration, logs and boot records</li>
+  </ul>
+  <p>When another module is uninstalled, the manager lets Magic Mount drop it from its list, so the list only ever names installed modules.</p>
+  <div class="note warn">
+    On current KernelSU, module files are not mounted without a metamodule. Install another one if you remove this one.
+  </div>
+</div>
+
+<!-- 9 -->
+<h2 class="sec-title" id="cli"><span class="n">9</span>Command line</h2>
+<div class="box">
+  <p>Everything the interface shows is plain text, so it can be read from any root shell:</p>
+  <pre>D=/data/adb/magic_mount
+
+cat $D/status           <span class="cm"># last run: boot id, result, exit code, timing, start time</span>
+cat $D/status.old       <span class="cm"># the same for the boot that wrote mm.log.old</span>
+cat $D/boot_state       <span class="cm"># each module as the last run saw it</span>
+cat $D/skip_mount.list  <span class="cm"># modules switched off here</span>
+cat $D/mm.conf          <span class="cm"># configuration</span>
+cat $D/mm.log           <span class="cm"># this boot</span>
+cat $D/mm.log.old       <span class="cm"># previous boot</span>
+
+<span class="cm"># switch a module off / on, as the interface does</span>
+touch /data/adb/modules/&lt;id&gt;/skip_mount &amp;&amp; echo &lt;id&gt; &gt;&gt; $D/skip_mount.list
+rm /data/adb/modules/&lt;id&gt;/skip_mount &amp;&amp; sed -i '/^&lt;id&gt;$/d' $D/skip_mount.list</pre>
+
+  <h3>The mount program</h3>
+  <pre>/data/adb/modules/meta-mm/mmd --help
+
+  -m, --module-dir DIR    module directory
+  -t, --temp-dir DIR      work directory (default: automatic)
+  -s, --mount-source SRC  mount name
+  -p, --partitions LIST   extra partitions, e.g. mi_ext,my_stock
+  -P, --priority LIST     preferred modules, most preferred first
+  -l, --log-file FILE     log file ('-' for the screen)
+  -c, --config FILE       configuration file
+  -v, --verbose           detailed logging
+      --no-umount         do not register mounts for KernelSU umount
+  -n, --dry-run           mount nothing; print the mount order
+                          and the conflicts of the next boot
+  -V, --version           print the version</pre>
+  <p><code>--dry-run</code> is safe at any time. It never writes the log file; its report is one tab-separated line per item:</p>
+  <pre>/data/adb/modules/meta-mm/mmd --dry-run
+
+order     1  module-a  installed      <span class="cm"># mount order; "update" = installed update</span>
+conflict  file  system/etc/hosts  module-a  module-b
+result    ok  12  1                   <span class="cm"># ok | empty | error, modules, conflicts</span></pre>
+  <p>Conflict kinds: <code>file</code> (different content), <code>same</code> (identical), <code>type</code> (file, folder or link against each other), <code>replace</code> (a folder emptied by the first module). The first module named wins.</p>
+  <div class="note warn">
+    Do not run <code>mmd</code> without <code>--dry-run</code> on a running system: a second run would mount everything a second time. <code>metamount.sh</code> refuses to run twice during the same boot for this reason. Command-line options override the config file.
+  </div>
+
+  <h3>Configuration file</h3>
+  <pre><span class="cm"># /data/adb/magic_mount/mm.conf</span>
+module_dir=/data/adb/modules
+mount_source=KSU
+log_file=/data/adb/magic_mount/mm.log
+debug=false
+umount=true
+<span class="cm"># temp_dir=/dev/.magic_mount</span>
+<span class="cm"># partitions=mi_ext,my_stock</span>
+<span class="cm"># priority=module-a,module-b</span></pre>
+  <p>One <code>key=value</code> per line. Lines starting with <code>#</code> are comments, keys are not case-sensitive, and a key without a value is ignored. <code>debug</code> and <code>umount</code> accept <code>true/false</code>, <code>yes/no</code>, <code>on/off</code> or <code>1/0</code>. Hand edits apply at the next boot, as usual.</p>
+</div>
+
+<!-- 10 -->
+<h2 class="sec-title" id="trouble"><span class="n">10</span>Troubleshooting</h2>
+<div class="box">
+  <h3>A module's files do not show up</h3>
+  <p>Check that its switch is on and that it has no note. If it is not in the list at all, it ships nothing under a handled partition, or uses an extra partition that is not listed in Config. Otherwise look at the Last boot card, then Logs → Only warnings and errors.</p>
+
+  <h3>A module's file is there, but it is another module's version</h3>
+  <p>Two modules ship that file. Open the Conflicts card on the Modules tab, tap <em>Use … instead</em> on the module you want, and reboot.</p>
+
+  <h3>"Magic Mount did not run during this boot"</h3>
+  <p>Usually one of these: the phone booted in safe mode (KernelSU then skips all modules), Magic Mount is disabled in the manager, or another metamodule is active. Fix the cause and reboot.</p>
+
+  <h3>"Mounting failed" or failed entries</h3>
+  <p>The modules at fault are listed on the card. Switch one off, reboot, and check again to confirm which module causes it. Detailed logging shows the exact file and the system's error.</p>
+
+  <h3>Skipped entries</h3>
+  <p>A module tried to add something inside a folder that could not be rebuilt in memory, usually one that exists only in the module and not on the device. That one entry is left out and the rest still mounts. Detailed logging names it.</p>
+
+  <h3>The switch is greyed out</h3>
+  <p>The module is disabled or marked for removal in the manager. Mounting cannot be changed for a module that will not be mounted anyway.</p>
+
+  <h3>An app still sees module files</h3>
+  <p>Turn on <em>Unmount for hidden apps</em> in Config (KernelSU only), enable <em>Umount modules</em> for that app in the manager, reboot, and fully restart the app.</p>
+
+  <h3>The phone does not boot after installing a module</h3>
+  <p>Magic Mount itself cannot block boot, but a module's files can break the system. Boot into KernelSU safe mode (press volume down repeatedly while the phone starts; see the KernelSU documentation) and disable the module, or remove its folder from recovery. Safe mode disables every module, so enable the others again afterwards.</p>
+
+  <h3>The interface is blank</h3>
+  <p>The manager did not provide the JavaScript bridge the interface needs. Open it from KernelSU, SukiSU, APatch or MMRL.</p>
+</div>
+
+<!-- 11 -->
+<h2 class="sec-title" id="files"><span class="n">11</span>File layout</h2>
+<div class="box">
+  <pre>/data/adb/modules/meta-mm/
+├── mmd               <span class="cm">the mount program</span>
+├── metamount.sh      <span class="cm">boot: records, runs mmd</span>
+├── service.sh        <span class="cm">after boot: adds the real start time</span>
+├── metainstall.sh    <span class="cm">used when other modules are installed</span>
+├── metauninstall.sh  <span class="cm">runs when another module is removed</span>
+├── uninstall.sh      <span class="cm">cleanup when Magic Mount is removed</span>
+├── customize.sh      <span class="cm">installer</span>
+├── aok               <span class="cm">root implementation (KSU / APATCH)</span>
+└── webroot/          <span class="cm">this interface</span>
+
+/data/adb/metamodule  <span class="cm">→ link to the active metamodule</span>
+
+/data/adb/magic_mount/
+├── mm.conf           <span class="cm">configuration (kept across updates)</span>
+├── mm.log            <span class="cm">this boot</span>
+├── mm.log.old        <span class="cm">previous boot</span>
+├── status            <span class="cm">result, exit code, timing, boot id, start time</span>
+├── status.old        <span class="cm">the same for the previous boot</span>
+├── boot_state        <span class="cm">each module as the last run saw it</span>
+├── boot_config       <span class="cm">configuration the last run used</span>
+└── skip_mount.list   <span class="cm">modules switched off here</span></pre>
+  <p>Everything you set lives in <code>/data/adb/magic_mount</code>, outside the module folder, because an update replaces the module folder completely.</p>
+</div>
+
+<div class="footer">
+  Magic Mount · original C core by 7a72, with backslashxx, lamprose, Prslc and others · maintained by Tears Burn · GPL-3.0 · source: github.com/nikakvo/meta-magic_mount
+</div>
+
+</main>
+
+<script>
+  function goBack() {
+    // history.back() is right when the user came from index.html. Some
+    // managers open a webroot file directly with no history to go back to,
+    // so fall through to an explicit navigation if nothing happened.
+    var left = false;
+    window.addEventListener('pagehide', function () { left = true; });
+    if (window.history.length > 1) {
+      window.history.back();
+      setTimeout(function () { if (!left) window.location.href = 'index.html'; }, 300);
+    } else {
+      window.location.href = 'index.html';
+    }
+  }
+</script>
+</body>
+</html>
