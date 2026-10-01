@@ -117,9 +117,10 @@ wrapper running `python3 -m ziglang "$@"`), `node` and `pnpm` 10.
 ```sh
 git clone https://github.com/nikakvo/meta-magic_mount.git
 cd meta-magic_mount
-./build.sh            # WebUI + tests + binaries -> build/*-release.zip
+bash build.sh         # WebUI + tests + binaries -> build/*-release.zip
 ```
 
+Run it with `bash` (the file is not marked executable in the repository).
 The version comes from the latest git tag; uncommitted changes add `-dirty`.
 
 | Option | |
@@ -142,7 +143,7 @@ The module checks for updates through `update.json` in the repository root
 tag writes a ready `build/update.json`.
 
 1. Add a `## vX.Y.Z` section at the top of `CHANGELOG.md`, commit, `git tag vX.Y.Z`.
-2. `./build.sh` (set `VERSION_CODE=…` to choose the versionCode), test the zip.
+2. `VERSION_CODE=<n> bash build.sh` (`<n>` = the new versionCode), test the zip.
 3. Create the GitHub release `vX.Y.Z`: paste `build/changelog.md` as the
    notes and upload `build/meta-magic_mount-vX.Y.Z-release.zip`.
 4. Replace `update.json` in the repository root with `build/update.json`.
@@ -159,7 +160,7 @@ cd webui && pnpm test      # pure WebUI logic (src/lib/parse.js)
 WebUI development in a desktop browser with fake data:
 
 ```sh
-cd webui && pnpm dev    # http://localhost:5173/?mock=ok|pending|stale|failed|fresh|many|conflicts
+cd webui && pnpm install && pnpm dev    # http://localhost:5173/?mock=ok|pending|stale|failed|fresh|many|conflicts
 ```
 
 Pure logic lives in `webui/src/lib/parse.js` (no device access).
