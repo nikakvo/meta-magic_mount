@@ -59,7 +59,13 @@ in this order wins; the other copy is ignored and recorded as a conflict
 `mmd --dry-run` builds the same tree without mounting and prints a
 tab-separated report (`order`, `conflict`, `unreadable`, `result` lines). It
 reads installed updates from `modules_update/`, so it describes the next boot.
-The WebUI's Conflicts card is built from it.
+The WebUI's Conflicts card is built from it. `mmd` is not on the system path;
+run it as root with the full path:
+
+```sh
+su -c '/data/adb/modules/meta-mm/mmd --dry-run'
+su -c '/data/adb/modules/meta-mm/mmd --version'
+```
 
 Partition links of KernelSU's default layout (`system/vendor -> ../vendor`)
 are followed while collecting `system/`, so modules in either layout merge.
