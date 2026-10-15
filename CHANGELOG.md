@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.2
+
+**Module**
+- New card banner in the root manager (SukiSU-Ultra and other managers that support module banners).
+
+No functional changes - mounting, the conflicts view and the WebUI work exactly as in the previous release. Updating is optional.
+
+---
+
 ## v1.2.1
 
 - Help page: the command line examples now use su -c with full paths, tested on a device.
