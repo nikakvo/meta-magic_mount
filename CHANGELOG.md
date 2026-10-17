@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.2
+
+- The module now shows a banner image on its card in the root manager.
+
+---
+
 ## v1.2.1
 
 - Help page: the command line examples now use su -c with full paths, tested on a device.
