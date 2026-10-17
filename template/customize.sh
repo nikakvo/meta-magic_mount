@@ -114,6 +114,7 @@ ui_print "- Installing module files"
 # Define files to install
 module_files="
     module.prop
+    banner.png
 "
 
 # Scripts that need executable permissions
