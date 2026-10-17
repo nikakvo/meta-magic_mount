@@ -1,6 +1,8 @@
 // Fake device for `pnpm dev` in a desktop browser.
 // Scenario is chosen with ?mock=<name> in the URL:
-//   ok (default) | pending | stale | failed | fresh | many | upgraded | conflicts
+//   ok (default) | pending | stale | failed | fresh | many | upgraded | conflicts | unlisted
+//   unlisted = a module ships mi_ext/, which is not in Extra partitions
+//   soft = mounted again after a soft reboot
 //   upgraded = first boot after updating from v1.1.5: this boot has a time,
 //              the previous boot has none (no status.old / boot_start yet)
 
@@ -37,7 +39,8 @@ const extraModules = [
 ];
 
 const withExtra = scenario === "many" || scenario === "conflicts";
-const modules = (withExtra ? [...baseModules, ...extraModules] : baseModules).map(
+const unlistedOnly = scenario === "unlisted" ? extraModules.filter(([id]) => id === "mi_ext-tweak") : [];
+const modules = (withExtra ? [...baseModules, ...extraModules] : [...baseModules, ...unlistedOnly]).map(
   ([id, name, parts]) => ({ id, name, parts, disabled: false, remove: false, skip: false, tracked: false, update: false }),
 );
 
@@ -117,8 +120,9 @@ export const mock = {
             exitCode: scenario === "failed" ? 1 : 0,
             root: "KSU",
             version: "v1.1.3",
-            startCs: 734,
-            endCs: 746,
+            startCs: scenario === "soft" ? 61234 : 734,
+            endCs: scenario === "soft" ? 61241 : 746,
+            softReboot: scenario === "soft",
             // stale: record of the previous boot, stamped by its service.sh
             bootStart: scenario === "stale" ? Math.floor(bootStartNow() - 86400) : null,
           };
@@ -186,7 +190,7 @@ export const mock = {
       .filter((m) => !m.disabled && !m.remove && !m.skip)
       .map((m) => m.id)
       .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
-    const lines = ["mmd-dry-run\t1\tv1.2.0"];
+    const lines = ["mmd-dry-run\t2\tv1.3.0"];
     order.forEach((id, i) => lines.push(`order\t${i + 1}\t${id}\tinstalled`));
     const on = new Set(order);
     const pair = (a, b, paths, kind = "file") => {
@@ -203,13 +207,39 @@ export const mock = {
       if (on.has("overlay-pack") && on.has("bootanim"))
         lines.push("conflict\treplace\tsystem/product/media\toverlay-pack\tbootanim");
     }
-    lines.push(`result\tok\t${order.length}\t${lines.length - order.length - 1}`);
+    const conflictCount = lines.length - order.length - 1;
+    if (on.has("mi_ext-tweak") && !cfg.partitions.includes("mi_ext"))
+      lines.push("unlisted\tmi_ext\tmi_ext-tweak");
+    lines.push(`result\tok\t${order.length}\t${conflictCount}`);
     const { parseDryRun } = await import("./parse.js");
     return {
       ...parseDryRun(lines.join("\n")),
       others:
         scenario === "conflicts" ? [{ id: "mountify", name: "Mountify" }] : [],
     };
+  },
+
+  async whichPath(path) {
+    await delay(300);
+    const lines = ["mmd-which\t1\tv1.3.0", `path\t${path}`];
+    const on = (id) => modules.some((m) => m.id === id && !m.disabled && !m.skip);
+    if (path === "/system/etc/hosts") {
+      if (on("hosts-block")) lines.push("module\thosts-block\tused\tfile\tinstalled");
+      lines.push(`module\tdnscrypt-proxy-android\t${on("hosts-block") ? "ignored" : "used"}\tfile\tinstalled`);
+      lines.push(`result\tused\t${on("hosts-block") ? "hosts-block" : "dnscrypt-proxy-android"}`);
+    } else if (path === "/system/bin") {
+      for (const id of ["chroot-distro", "dnscrypt-proxy-android", "ipset_arm64", "sqlite3-arm64-only"])
+        lines.push(`module\t${id}\tmerged\tfolder\tinstalled`);
+      lines.push("result\tmerged\t-");
+    } else if (path === "/system/bin/sqlite3") {
+      lines.push("module\tsqlite3-arm64-only\tused\tfile\tupdate", "result\tused\tsqlite3-arm64-only");
+    } else if (path.startsWith("/mi_ext/")) {
+      lines.push("module\tmi_ext-tweak\tunlisted\tfile\tinstalled", "result\tnone\t-");
+    } else {
+      lines.push("result\tnone\t-");
+    }
+    const { parseWhich } = await import("./parse.js");
+    return parseWhich(lines.join("\n"));
   },
 
   readLog(previous) {

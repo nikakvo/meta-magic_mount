@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.0
+
+- Find a file: see which modules ship a path and which copy the next boot uses.
+- Conflicts card warns when a module ships a folder for a partition missing from Extra partitions, with a button to add it.
+- Soft reboot from the root manager now applies module changes, as a full reboot does.
+- Fixed: on KernelSU, a partial mount failure no longer leaves module files visible to apps hidden from root.
+- Fixed: modules that request hot install are now installed by the root manager alone, not twice.
+- Fixed: the Last boot card now counts modules that only ship an extra partition.
+
+---
+
 ## v1.2.2
 
 - The module now shows a banner image on its card in the root manager.

@@ -45,6 +45,7 @@
     if (!device.current || st?.startCs == null || st?.endCs == null) return null;
     const at = formatSeconds(st.startCs);
     const took = formatSeconds(Math.max(0, st.endCs - st.startCs));
+    if (st.softReboot) return took ? t.boot.timingSoft(took) : null;
     return at && took ? t.boot.timing(at, took) : null;
   });
 </script>

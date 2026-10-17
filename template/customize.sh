@@ -122,6 +122,7 @@ executable_scripts="
     metainstall.sh
     metauninstall.sh
     metamount.sh
+    emulated-soft-reboot.sh
     service.sh
     uninstall.sh
 "

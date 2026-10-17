@@ -44,6 +44,11 @@ int ksu_send_unmountable(const char *mntpoint) {
     cmd.mode = 1;
 
     if (ioctl(fd, KSU_IOCTL_ADD_TRY_UMOUNT, &cmd) < 0) {
+        /* Already on KernelSU's list, e.g. mounted again after a soft reboot */
+        if (errno == EEXIST) {
+            LOGD("%s is already registered for umount", mntpoint);
+            return 0;
+        }
         LOGE("ioctl KSU_IOCTL_ADD_TRY_UMOUNT failed: %s", strerror(errno));
         return -1;
     }

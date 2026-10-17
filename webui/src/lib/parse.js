@@ -125,6 +125,8 @@ export function parseStatus(text) {
     endCs: num(kv.end_cs),
     // Real start of that boot (epoch s), added by service.sh once the clock is set
     bootStart: num(kv.boot_start),
+    // Mounted again after Android restarted on the same kernel (soft reboot)
+    softReboot: kv.soft_reboot === "1",
   };
 }
 
@@ -274,7 +276,7 @@ export function formatSeconds(cs) {
 export function parseDryRun(text) {
   const lines = String(text || "").split("\n").filter((l) => l.trim());
   if (!lines.length || !lines[0].startsWith("mmd-dry-run\t")) return null;
-  const out = { result: "error", order: [], conflicts: [], unreadable: [] };
+  const out = { result: "error", order: [], conflicts: [], unreadable: [], unlisted: [] };
   for (const line of lines.slice(1)) {
     const f = line.split("\t");
     switch (f[0]) {
@@ -286,6 +288,9 @@ export function parseDryRun(text) {
         break;
       case "unreadable":
         out.unreadable.push(f[1]);
+        break;
+      case "unlisted": // mmd-dry-run 2: <partition> <module id>
+        if (f.length >= 3) out.unlisted.push({ partition: f[1], id: f[2] });
         break;
       case "result":
         out.result = f[1];
@@ -323,6 +328,52 @@ export function groupConflicts(conflicts) {
 // Mount order with `id` moved to the front: it then wins all its conflicts
 export function preferModule(priority, id) {
   return [id, ...(priority || []).filter((x) => x !== id)];
+}
+
+// "mmd --which <path>" output -> { result, winner, modules: [{ id, status, type, pending }] }
+// result: used | merged | none | error. Unknown lines are skipped.
+export function parseWhich(text) {
+  const lines = String(text || "").split("\n").filter((l) => l.trim());
+  if (!lines.length || !lines[0].startsWith("mmd-which\t")) return null;
+  const out = { result: "error", winner: null, modules: [] };
+  for (const line of lines.slice(1)) {
+    const f = line.split("\t");
+    if (f[0] === "module" && f.length >= 5) {
+      out.modules.push({ id: f[1], status: f[2], type: f[3], pending: f[4] === "update" });
+    } else if (f[0] === "result") {
+      out.result = f[1] || "error";
+      out.winner = f[2] && f[2] !== "-" ? f[2] : null;
+    }
+  }
+  return out;
+}
+
+// A path the lookup accepts: absolute, no "." / ".." parts, no control characters
+export function isLookupPath(p) {
+  const s = String(p || "").trim();
+  if (!s.startsWith("/") || s.length > 1024 || /[\x00-\x1f]/.test(s)) return false;
+  const parts = s.split("/").filter(Boolean);
+  return parts.length > 0 && !parts.some((x) => x === "." || x === "..");
+}
+
+// Unlisted partitions as the WebUI shows them: one entry per partition,
+// with every module that ships a folder for it.
+export function groupUnlisted(unlisted) {
+  const byPart = new Map();
+  for (const u of unlisted || []) {
+    if (!byPart.has(u.partition)) byPart.set(u.partition, { partition: u.partition, ids: [] });
+    const g = byPart.get(u.partition);
+    if (!g.ids.includes(u.id)) g.ids.push(u.id);
+  }
+  return [...byPart.values()];
+}
+
+// Extra partitions list with `name` added at the end. Names mmd would
+// reject (bad characters, built in, blacklisted) leave the list unchanged.
+export function addPartition(partitions, name) {
+  const list = partitions || [];
+  if (!PART_RE.test(name || "") || PART_BLACKLIST.has(name) || list.includes(name)) return list;
+  return [...list, name];
 }
 
 // "other modules that mount": "<id>\t<name>" per line

@@ -678,3 +678,39 @@ input[type="text"]:focus {
   gap: 9px;
   min-width: 0;
 }
+
+/* Find a file */
+.which-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.which-form input {
+  flex: 1;
+  min-width: 0;
+}
+.which-form .btn {
+  flex: none;
+}
+.which-path {
+  margin: 10px 0 0;
+  color: var(--fog);
+  font-size: 11px;
+  word-break: break-all;
+}
+.which-id {
+  color: var(--fog);
+  font-size: 10.5px;
+}
+.which-st {
+  color: var(--chalk);
+}
+.which-used,
+.which-merged {
+  color: var(--ok);
+}
+.which-off,
+.which-unlisted,
+.which-not-mounted {
+  color: var(--brass);
+}

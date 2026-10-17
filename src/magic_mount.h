@@ -30,6 +30,7 @@ typedef struct {
     char *id;
     char *path;   /* folder the files are read from */
     bool pending; /* path is a not yet applied update (dry run only) */
+    bool counted; /* already in stats.modules_total */
 } ModuleEntry;
 
 /* Two modules want the same path. The module that comes first in the

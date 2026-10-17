@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Magic Mount — Help</title>
+  <title>Magic Mount - Help</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="stylesheet" href="https://mui.kernelsu.org/internal/insets.css">
   <style>
@@ -208,6 +208,16 @@
     Magic Mount never blocks boot. If mounting fails, or the program is missing, the phone still starts normally. Module files are then simply not applied, and the Last boot card says so.
   </div>
   <p><code>mmd</code> is not a background service. It runs once, usually for a fraction of a second, and exits. There is no daemon and no process ID to watch. The Last boot card shows when it ran and how long it took.</p>
+
+  <h3>Soft reboot</h3>
+  <p>A soft reboot from the root manager restarts Android without restarting the kernel. Once Android has stopped, Magic Mount removes the mounts it made and mounts everything again, so module updates, new or removed modules and the switches in the Modules tab apply as after a full reboot. The Last boot card then says it ran again after a soft reboot, and the log from before the soft reboot becomes the previous log.</p>
+  <p>If the old mounts cannot all be removed, they are kept as they are and changes wait for a full reboot. Module files are never mounted twice.</p>
+  <div class="note warn">
+    Bootloop protectors that watch SystemUI can take a soft reboot for a bootloop. <strong>Yet Another Bootloop Protector</strong> disables every module and reboots when SystemUI is gone for about 20 seconds, and a soft reboot often takes that long. If you use soft reboot, turn off its SystemUI check (its other checks stay on), then reboot once:
+  </div>
+  <pre>su -c 'touch /data/adb/systemui.monitor.disable'</pre>
+  <p>To turn the check back on:</p>
+  <pre>su -c 'rm /data/adb/systemui.monitor.disable'</pre>
 </div>
 
 <!-- 3 -->
@@ -257,10 +267,10 @@
   <h3>Last boot card</h3>
   <p>The colored edge shows the result at a glance:</p>
   <ul>
-    <li><span class="c-ok"><strong>green</strong></span> — everything mounted, e.g. "15 entries mounted from 5 modules. No failures."</li>
-    <li><span class="c-brass"><strong>amber</strong></span> — mounted, but some entries failed or were skipped. Open Logs.</li>
-    <li><span class="c-bad"><strong>red</strong></span> — mounting failed, the mount program is missing, or Magic Mount <strong>did not run during this boot</strong></li>
-    <li><span class="fog"><strong>grey</strong></span> — nothing to mount, or Magic Mount has not run yet (just installed)</li>
+    <li><span class="c-ok"><strong>green</strong></span> - everything mounted, e.g. "15 entries mounted from 5 modules. No failures."</li>
+    <li><span class="c-brass"><strong>amber</strong></span> - mounted, but some entries failed or were skipped. Open Logs.</li>
+    <li><span class="c-bad"><strong>red</strong></span> - mounting failed, the mount program is missing, or Magic Mount <strong>did not run during this boot</strong></li>
+    <li><span class="fog"><strong>grey</strong></span> - nothing to mount, or Magic Mount has not run yet (just installed)</li>
   </ul>
   <p>The line below it, "Ran 7.3 s after boot, took 0.12 s", is measured on the device's uptime clock. It only appears when the record belongs to the current boot. Modules that caused failures are listed by ID.</p>
 
@@ -283,12 +293,16 @@
   <h3>Conflicts card</h3>
   <p>Below the list. It shows which modules ship the same files, checked against what the <strong>next boot</strong> will mount: switches, disabled modules and installed updates are already taken into account. The check runs <code>mmd --dry-run</code>, which reads the modules but mounts nothing.</p>
   <ul>
-    <li><strong>A is used instead of B</strong> — B's copies of these files are ignored. <em>Show files</em> lists them; entries marked <em>file, folder or link</em> are a file in one module and a folder or link in the other.</li>
-    <li><strong>Use B instead</strong> — puts B first in the mount order (Preferred modules), so B wins all its conflicts from the next boot on. This writes the configuration, so the "apply after reboot" line appears.</li>
-    <li><strong>A empties a folder</strong> — A replaces a folder another module adds files to. Both still apply.</li>
-    <li><strong>Clear order</strong> — back to plain module ID order.</li>
+    <li><strong>A is used instead of B</strong> - B's copies of these files are ignored. <em>Show files</em> lists them; entries marked <em>file, folder or link</em> are a file in one module and a folder or link in the other.</li>
+    <li><strong>Use B instead</strong> - puts B first in the mount order (Preferred modules), so B wins all its conflicts from the next boot on. This writes the configuration, so the "apply after reboot" line appears.</li>
+    <li><strong>A empties a folder</strong> - A replaces a folder another module adds files to. Both still apply.</li>
+    <li><strong>Clear order</strong> - back to plain module ID order.</li>
   </ul>
+  <p>The card also shows a module that ships a folder for a <strong>partition that is not in Extra partitions</strong>, such as <code>mi_ext/</code>. Those files are not mounted. <em>Add … to Extra partitions</em> adds it to Config; it applies from the next boot. Only folders that match a real partition mounted on this device are shown, so a module's own folders (<code>webroot</code>, <code>bin</code>, <code>config</code>…) never appear here.</p>
   <p>The card also warns when <strong>another module that mounts module files</strong> is installed, such as a second metamodule or mountify. Two of them would mount the same files twice; remove the other one.</p>
+
+  <h3>Find a file</h3>
+  <p>Enter a path on the phone, such as <code>/system/etc/hosts</code>, to see every module that ships it and what the <strong>next boot</strong> does with each copy: <em>used</em>, <em>not used, another module wins</em>, <em>combined</em> (a folder that several modules add to), <em>module switched off</em> or <em>partition not in Extra partitions</em>. <code>/vendor/…</code> and <code>/system/vendor/…</code> are the same place. Like the Conflicts card, it reads the modules and mounts nothing.</p>
 
   <h3>Reload list</h3>
   <p>Reads everything again: modules, boot records, configuration and log. Changes made in this interface show up immediately. Reload is for changes made elsewhere while the interface is open, such as disabling a module in the manager, installing an update, or editing a file by hand.</p>
@@ -301,8 +315,8 @@
   <h3>How the interface knows what is pending</h3>
   <p>At every boot, <code>metamount.sh</code> records which modules were mounted and which configuration was used. The interface compares the current state with that record:</p>
   <ul>
-    <li><span class="chip c-ok">Mounts after reboot</span> — off (or new) now, on after reboot</li>
-    <li><span class="chip c-brass">Stops mounting after reboot</span> — mounted now, off after reboot</li>
+    <li><span class="chip c-ok">Mounts after reboot</span> - off (or new) now, on after reboot</li>
+    <li><span class="chip c-brass">Stops mounting after reboot</span> - mounted now, off after reboot</li>
     <li><span class="chip c-brass">Update installed, new files apply after reboot</span></li>
   </ul>
   <p>The line at the bottom counts the module changes, and a separate line appears when the configuration was changed. A dot on the Modules tab shows the same thing from other tabs.</p>
@@ -338,9 +352,9 @@
 <h2 class="sec-title" id="logs"><span class="n">7</span>The Logs tab</h2>
 <div class="box">
   <ul>
-    <li><strong>This boot / Previous boot</strong> — <code>mm.log</code> and <code>mm.log.old</code></li>
-    <li><strong>Wrap lines</strong> — wrap long lines instead of scrolling sideways</li>
-    <li><strong>Only warnings and errors</strong> — the quickest way to see what went wrong</li>
+    <li><strong>This boot / Previous boot</strong> - <code>mm.log</code> and <code>mm.log.old</code></li>
+    <li><strong>Wrap lines</strong> - wrap long lines instead of scrolling sideways</li>
+    <li><strong>Only warnings and errors</strong> - the quickest way to see what went wrong</li>
     <li>above the log: when the log was written (the log lines have no times of their own, so this tells the two boots apart), line, warning and error counts, and when it was read. <strong>Refresh</strong> reads the file again; it only changes after a reboot.</li>
     <li>the written time comes from the boot records, not from the file, whose date is set before the clock is (see <a href="#boot" style="color:var(--brass)">2</a>). When no reliable time exists it is left out rather than shown wrong: for the previous boot right after Magic Mount was installed or updated, or when the clock was not set within 10 minutes of that boot.</li>
     <li>errors in red, warnings in amber, debug lines dimmed</li>
@@ -407,16 +421,27 @@ su -c '/data/adb/modules/meta-mm/mmd --help'
       --no-umount         do not register mounts for KernelSU umount
   -n, --dry-run           mount nothing; print the mount order
                           and the conflicts of the next boot
+  -w, --which PATH        mount nothing; show which modules ship
+                          PATH and which one the next boot uses
   -V, --version           print the version</pre>
   <p><code>--dry-run</code> is safe at any time. It mounts nothing and never writes the log file; its report is one tab-separated line per item:</p>
   <pre>su -c '/data/adb/modules/meta-mm/mmd --dry-run'
 
-mmd-dry-run  1  v1.2.0
+mmd-dry-run  2  v1.3.0
 order     1  module-a  installed      <span class="cm"># every enabled module, in mount order</span>
 order     2  module-b  update         <span class="cm"># "update" = installed, applies at reboot</span>
 conflict  file  system/etc/hosts  module-a  module-b
+unlisted  mi_ext  module-b           <span class="cm"># folder for a partition not in Extra partitions</span>
 result    ok  2  1                    <span class="cm"># ok | empty | error, modules, conflicts</span></pre>
   <p>The order lists every enabled module, also those with nothing to mount (they simply take no part). IDs are sorted byte by byte, so IDs that start with a capital letter come first.</p>
+  <p><code>--which</code> answers the same question as the Find a file card, for one path:</p>
+  <pre>su -c '/data/adb/modules/meta-mm/mmd --which /system/etc/hosts'
+
+mmd-which  1  v1.3.0
+path      /system/etc/hosts
+module    module-a  used     file  installed
+module    module-b  ignored  file  installed
+result    used  module-a             <span class="cm"># used | merged | none, and the module whose copy is used</span></pre>
   <p>Conflict kinds: <code>file</code> (different content), <code>same</code> (identical), <code>type</code> (file, folder or link against each other), <code>replace</code> (a folder emptied by the first module). The first module named wins.</p>
   <div class="note warn">
     Do not run <code>mmd</code> without <code>--dry-run</code> on a running system: a second run would mount everything a second time. <code>metamount.sh</code> refuses to run twice during the same boot for this reason. Command-line options override the config file.
@@ -439,7 +464,7 @@ umount=true
 <h2 class="sec-title" id="trouble"><span class="n">10</span>Troubleshooting</h2>
 <div class="box">
   <h3>A module's files do not show up</h3>
-  <p>Check that its switch is on and that it has no note. If it is not in the list at all, it ships nothing under a handled partition, or uses an extra partition that is not listed in Config. Otherwise look at the Last boot card, then Logs → Only warnings and errors.</p>
+  <p>Check that its switch is on and that it has no note. If it is not in the list at all, it ships nothing under a handled partition, or uses an extra partition that is not listed in Config (the Conflicts card then offers to add it). Otherwise look at the Last boot card, then Logs → Only warnings and errors.</p>
 
   <h3>A module's file is there, but it is another module's version</h3>
   <p>Two modules ship that file. Open the Conflicts card on the Modules tab, tap <em>Use … instead</em> on the module you want, and reboot.</p>
@@ -473,6 +498,7 @@ umount=true
 ├── mmd               <span class="cm">the mount program</span>
 ├── metamount.sh      <span class="cm">boot: records, runs mmd</span>
 ├── service.sh        <span class="cm">after boot: adds the real start time</span>
+├── emulated-soft-reboot.sh  <span class="cm">soft reboot: marks it for metamount.sh</span>
 ├── metainstall.sh    <span class="cm">used when other modules are installed</span>
 ├── metauninstall.sh  <span class="cm">runs when another module is removed</span>
 ├── uninstall.sh      <span class="cm">cleanup when Magic Mount is removed</span>
@@ -490,6 +516,7 @@ umount=true
 ├── status.old        <span class="cm">the same for the previous boot</span>
 ├── boot_state        <span class="cm">each module as the last run saw it</span>
 ├── boot_config       <span class="cm">configuration the last run used</span>
+├── mounts            <span class="cm">mounts the last run made (removed on soft reboot)</span>
 └── skip_mount.list   <span class="cm">modules switched off here</span></pre>
   <p>Everything you set lives in <code>/data/adb/magic_mount</code>, outside the module folder, because an update replaces the module folder completely.</p>
 </div>

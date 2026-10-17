@@ -125,5 +125,90 @@ if [ -d /opt ] && [ ! -L /opt ]; then
     expect "extra-partition-only module mounted" "result${TAB}ok${TAB}1${TAB}0" "$out"
 fi
 
+# 12. Folder for a partition that is not in partitions= is reported
+#     (only real partitions: mounted ext4 / erofs / f2fs at /<name>)
+CASE=unlisted
+cat > "$T/mountinfo" <<'MI'
+1 0 253:7 / /mi_ext ro,relatime master:8 - erofs /dev/block/dm-7 ro
+2 0 0:19 / /config rw,nosuid master:31 - configfs none rw
+3 0 253:5 / /vendor ro,relatime master:12 - erofs /dev/block/dm-5 ro
+4 0 253:9 / /bin ro,relatime - ext4 /dev/block/dm-9 ro
+5 0 253:8 / /my_part ro,relatime - f2fs /dev/block/dm-8 ro
+6 0 253:6 / /mi_ext/sub ro,relatime - erofs /dev/block/dm-6 ro
+MI
+file a-mod/mi_ext/etc/x "a"
+file a-mod/config/x "c"
+file a-mod/cust/x "c"
+file a-mod/bin/tool "b"
+file a-mod/webroot/index.html "w"
+file a-mod/vendor/etc/y "v"
+file b-mod/mi_ext/etc/z "b"; : > "$T/$CASE/modules/b-mod/disable"
+mod c-mod; ln -s ../a-mod/mi_ext "$T/$CASE/modules/c-mod/mi_ext"
+file d-mod/my_part/f "d"
+out="$(MM_TEST_MOUNTINFO="$T/mountinfo" run)"
+expect "format version 2" "mmd-dry-run${TAB}2${TAB}.*" "$out"
+expect "unlisted erofs partition" "unlisted${TAB}mi_ext${TAB}a-mod" "$out"
+expect "unlisted f2fs partition" "unlisted${TAB}my_part${TAB}d-mod" "$out"
+reject "configfs is not a partition" "unlisted${TAB}config${TAB}.*" "$out"
+reject "not mounted is not a partition" "unlisted${TAB}cust${TAB}.*" "$out"
+reject "blacklisted names never" "unlisted${TAB}bin${TAB}.*" "$out"
+reject "built-in partitions never" "unlisted${TAB}vendor${TAB}.*" "$out"
+reject "disabled module ignored" "unlisted${TAB}mi_ext${TAB}b-mod" "$out"
+reject "symlinked folder ignored" "unlisted${TAB}mi_ext${TAB}c-mod" "$out"
+out="$(MM_TEST_MOUNTINFO="$T/mountinfo" run -p mi_ext)"
+reject "listed partition not reported" "unlisted${TAB}mi_ext${TAB}a-mod" "$out"
+expect "other ones still reported" "unlisted${TAB}my_part${TAB}d-mod" "$out"
+out="$(MM_TEST_MOUNTINFO="$T/does-not-exist" run)"
+reject "no mountinfo, no report" "unlisted${TAB}.*" "$out"
+expect "and the result is unchanged" "result${TAB}empty${TAB}3${TAB}0" "$out"
+
+# 13. --which: who ships a path and which copy the next boot uses
+CASE=which
+file a-mod/system/etc/hosts "one"
+file b-mod/system/etc/hosts "two"
+file c-mod/system/etc/hosts "off"; : > "$T/$CASE/modules/c-mod/disable"
+file d-mod/vendor/etc/v "d"
+mkdir -p "$T/$CASE/modules/d-mod/system"; ln -s ../vendor "$T/$CASE/modules/d-mod/system/vendor"
+file e-mod/system/vendor/etc/v "e"
+file f-mod/mi_ext/x "f"
+file g-mod/system/bin/old "g"
+: > "$T/$CASE/modules/g-mod/update"
+mkdir -p "$T/$CASE/modules_update/g-mod/system/bin"
+printf 'new' > "$T/$CASE/modules_update/g-mod/system/bin/new"
+wp() { p="$1"; shift; "$MMD" --which "$p" -c /dev/null -m "$T/$CASE/modules" "$@" 2>/dev/null; }
+out="$(wp /system/etc/hosts)"
+expect "which header" "mmd-which${TAB}1${TAB}.*" "$out"
+expect "first module used" "module${TAB}a-mod${TAB}used${TAB}file${TAB}installed" "$out"
+expect "other one ignored" "module${TAB}b-mod${TAB}ignored${TAB}file${TAB}installed" "$out"
+expect "switched off module" "module${TAB}c-mod${TAB}off${TAB}file${TAB}installed" "$out"
+expect "winner" "result${TAB}used${TAB}a-mod" "$out"
+out="$(wp /system/etc/hosts -P b-mod)"
+expect "preferred module used" "result${TAB}used${TAB}b-mod" "$out"
+out="$(wp //system//etc/hosts/)"
+expect "path is normalized" "result${TAB}used${TAB}a-mod" "$out"
+out="$(wp /system/etc)"
+expect "folder merged" "module${TAB}a-mod${TAB}merged${TAB}folder${TAB}installed" "$out"
+expect "folder result" "result${TAB}merged${TAB}-" "$out"
+out="$(wp /vendor/etc/v)"
+expect "vendor: KernelSU layout used" "module${TAB}d-mod${TAB}used${TAB}file${TAB}installed" "$out"
+expect "vendor: plain layout ignored" "module${TAB}e-mod${TAB}ignored${TAB}file${TAB}installed" "$out"
+n="$(printf '%s\n' "$out" | grep -c "^module${TAB}d-mod")"
+[ "$n" = 1 ] && PASS=$((PASS + 1)) || { FAIL=$((FAIL + 1)); echo "FAIL [which] d-mod listed $n times"; }
+out="$(wp /system/vendor/etc/v)"
+expect "same place via /system/vendor" "result${TAB}used${TAB}d-mod" "$out"
+out="$(wp /mi_ext/x)"
+expect "partition not listed" "module${TAB}f-mod${TAB}unlisted${TAB}file${TAB}installed" "$out"
+expect "nothing used" "result${TAB}none${TAB}-" "$out"
+out="$(wp /system/bin/new)"
+expect "pending update read" "module${TAB}g-mod${TAB}used${TAB}file${TAB}update" "$out"
+out="$(wp /system/bin/nothing-here)"
+reject "no module lines" "module${TAB}.*" "$out"
+expect "none" "result${TAB}none${TAB}-" "$out"
+out="$(wp ../etc/hosts)"; rc=$?
+expect "relative path refused" "result${TAB}error${TAB}-" "$out"
+[ "$rc" = 1 ] && PASS=$((PASS + 1)) || { FAIL=$((FAIL + 1)); echo "FAIL [which] exit code $rc"; }
+out="$(wp /system/../etc)"
+expect "dot-dot refused" "result${TAB}error${TAB}-" "$out"
+
 echo "dryrun tests: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

@@ -22,6 +22,7 @@ export const t = {
     missingBinary: "The mount program is missing. Reinstall Magic Mount.",
     failedModules: "Modules with failures:",
     timing: (at, took) => `Ran ${at} after boot, took ${took}`,
+    timingSoft: (took) => `Ran again after a soft reboot, took ${took}`,
   },
 
   modules: {
@@ -73,8 +74,36 @@ export const t = {
     othersHelp:
       "Only one module should do this. Remove the others, otherwise the same files are mounted twice.",
     recheck: "Check again",
+    unlisted: "is not in Extra partitions",
+    unlistedBy: (names) =>
+      `Shipped by ${names}. These files are not mounted. Adding it takes effect after a reboot.`,
+    addPartition: (part) => `Add ${part} to Extra partitions`,
+    addPartitionError: "Could not save the configuration.",
   },
 
+  which: {
+    title: "Find a file",
+    intro: "Enter a path on the phone to see which modules ship it and which copy the next boot uses.",
+    placeholder: "/system/etc/hosts",
+    lookup: "Look up",
+    looking: "Looking…",
+    invalid: "Enter a full path starting with /, for example /system/etc/hosts.",
+    error: "Could not look up this path.",
+    used: (name) => `The next boot uses the copy from ${name}.`,
+    merged: "A folder: the files of every module listed are combined.",
+    none: "No module ships this path.",
+    noneUsed: "No module's copy will be used.",
+    status: {
+      used: "used",
+      ignored: "not used, another module wins",
+      merged: "combined",
+      off: "module switched off",
+      unlisted: "partition not in Extra partitions",
+      "not-mounted": "not mounted",
+    },
+    types: { file: "file", folder: "folder", link: "link", whiteout: "hides the file" },
+    pending: "update, after reboot",
+  },
   config: {
     title: "Configuration",
     loadError: "Could not read the configuration file. Defaults are shown.",

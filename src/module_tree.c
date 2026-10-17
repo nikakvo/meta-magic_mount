@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -350,6 +351,7 @@ int module_list_collect(MagicMount *ctx) {
         r->e.id = strdup(de->d_name);
         r->e.path = strdup(src);
         r->e.pending = pending;
+        r->e.counted = false;
         r->rank = priority_rank(ctx, de->d_name);
         if (!r->e.id || !r->e.path) {
             free(r->e.id);
@@ -671,7 +673,7 @@ static int partition_scan_from_modules(MagicMount *ctx, const char *part_name, N
     bool has_any = false;
 
     for (int i = 0; i < ctx->modules_count; ++i) {
-        const ModuleEntry *m = &ctx->modules[i];
+        ModuleEntry *m = &ctx->modules[i];
         char part_path[PATH_MAX];
 
         if (path_join(m->path, part_name, part_path, sizeof(part_path)) != 0)
@@ -680,6 +682,11 @@ static int partition_scan_from_modules(MagicMount *ctx, const char *part_name, N
             continue;
 
         LOGD("collecting /%s from module %s", part_name, m->id);
+        /* A module with only an extra-partition folder counts too */
+        if (!m->counted) {
+            ctx->stats.modules_total++;
+            m->counted = true;
+        }
 
         bool sub = false;
         if (node_scan_dir(ctx, parent_node, part_path, m, part_name, &sub) != 0) {
@@ -759,7 +766,7 @@ Node *build_mount_tree(MagicMount *ctx) {
     bool has_any = false;
 
     for (int i = 0; i < ctx->modules_count; ++i) {
-        const ModuleEntry *m = &ctx->modules[i];
+        ModuleEntry *m = &ctx->modules[i];
         char mod_sys[PATH_MAX];
 
         if (path_join(m->path, "system", mod_sys, sizeof(mod_sys)) != 0)
@@ -769,6 +776,7 @@ Node *build_mount_tree(MagicMount *ctx) {
 
         LOGI("build_mount_tree: collecting module %s", m->id);
         ctx->stats.modules_total++;
+        m->counted = true;
 
         bool sub = false;
         if (node_scan_dir(ctx, system, mod_sys, m, "system", &sub) != 0) {
@@ -822,6 +830,7 @@ Node *build_mount_tree(MagicMount *ctx) {
                 node_free(child);
                 return tree_fail(ctx, root, system);
             }
+            ctx->stats.nodes_total++; /* the partition folder itself, like root and system */
             has_any = true;
         } else {
             node_free(child);
@@ -873,4 +882,242 @@ void module_tree_cleanup(MagicMount *ctx) {
     free(ctx->conflicts);
     ctx->conflicts = NULL;
     ctx->conflicts_count = 0;
+}
+
+/* --- Unlisted extra partitions (dry-run report only) --- */
+
+/* File systems real partitions use. configfs, tmpfs, proc, sysfs and the
+ * like never count, so /config, /dev, /mnt ... are never suggested. */
+static const char *const PART_FSTYPES[] = {"ext4", "erofs", "f2fs"};
+
+/* Names of top-level mount points (/<name>) that hold a partition, read
+ * from a mountinfo file: "id parent maj:min root mountpoint opts ... - fstype src opts" */
+static void partition_mounts_read(const char *mountinfo, char ***names, int *count) {
+    FILE *f = fopen(mountinfo, "r");
+    if (!f) {
+        LOGW("unlisted partitions: cannot read %s: %s", mountinfo, strerror(errno));
+        return;
+    }
+
+    char *line = NULL;
+    size_t cap = 0;
+    while (getline(&line, &cap, f) != -1) {
+        char mp[256];
+        char fstype[64];
+        const char *sep = strstr(line, " - ");
+        if (!sep || sscanf(line, "%*s %*s %*s %*s %255s", mp) != 1 ||
+            sscanf(sep + 3, "%63s", fstype) != 1)
+            continue;
+        /* only /<name>, one level, no escapes */
+        if (mp[0] != '/' || !mp[1] || strchr(mp + 1, '/') || strchr(mp, '\\'))
+            continue;
+
+        bool block = false;
+        for (size_t i = 0; i < sizeof(PART_FSTYPES) / sizeof(PART_FSTYPES[0]); ++i) {
+            if (!strcmp(fstype, PART_FSTYPES[i]))
+                block = true;
+        }
+        if (block)
+            str_array_append(names, count, mp + 1);
+    }
+    free(line);
+    fclose(f);
+}
+
+int unlisted_partitions_report(const MagicMount *ctx, const char *mountinfo, unlisted_fn fn,
+                               void *arg) {
+    char **parts = NULL;
+    int parts_count = 0;
+    int found = 0;
+
+    partition_mounts_read(mountinfo, &parts, &parts_count);
+    if (parts_count == 0)
+        return 0;
+
+    for (int i = 0; i < ctx->modules_count; ++i) {
+        const ModuleEntry *m = &ctx->modules[i];
+        DIR *d = opendir(m->path);
+        if (!d)
+            continue;
+
+        struct dirent *de;
+        while ((de = readdir(d))) {
+            const char *name = de->d_name;
+            if (name[0] == '.' || !strcmp(name, "system") || is_builtin_part(name) ||
+                is_extra_part(ctx, name) || extra_part_blacklisted(name))
+                continue;
+
+            bool mounted = false;
+            for (int j = 0; j < parts_count; ++j) {
+                if (!strcmp(name, parts[j]))
+                    mounted = true;
+            }
+            if (!mounted)
+                continue;
+
+            char p[PATH_MAX];
+            if (path_join(m->path, name, p, sizeof(p)) != 0 || !path_is_dir(p) ||
+                path_is_symlink(p))
+                continue;
+
+            fn(name, m->id, arg);
+            found++;
+        }
+        closedir(d);
+    }
+
+    str_array_free(&parts, &parts_count);
+    return found;
+}
+
+/* --- "Where does this file come from?" (--which, read only) --- */
+
+static Node *node_walk(Node *n, const char *rel) {
+    char buf[PATH_MAX];
+    if (snprintf(buf, sizeof(buf), "%s", rel) >= (int)sizeof(buf))
+        return NULL;
+    char *save = NULL;
+    for (char *c = strtok_r(buf, "/", &save); c && n; c = strtok_r(NULL, "/", &save))
+        n = node_child_find(n, c);
+    return n;
+}
+
+/* Node for an absolute device path; /vendor/x and /system/vendor/x are
+ * the same place, whichever way the tree holds it. */
+static Node *node_for_path(Node *root, const char *rel, const char *alt) {
+    Node *n = node_walk(root, rel);
+    if (!n && alt)
+        n = node_walk(root, alt);
+    return n;
+}
+
+static NodeFileType path_type(const char *p, bool *exists) {
+    struct stat st;
+    *exists = lstat(p, &st) == 0;
+    return *exists ? node_type_from_stat(&st) : NFT_REGULAR;
+}
+
+int which_report(MagicMount *ctx, const char *path, which_fn fn, void *arg, const char **winner) {
+    *winner = NULL;
+
+    /* "/system//bin/ipset/" -> "system/bin/ipset"; no "." or ".." parts */
+    char rel[PATH_MAX];
+    size_t o = 0;
+    for (const char *s = path; *s;) {
+        while (*s == '/')
+            s++;
+        if (!*s)
+            break;
+        const char *e = strchr(s, '/');
+        size_t len = e ? (size_t)(e - s) : strlen(s);
+        if ((len == 1 && s[0] == '.') || (len == 2 && s[0] == '.' && s[1] == '.'))
+            return -1;
+        if (o + len + 2 >= sizeof(rel))
+            return -1;
+        if (o)
+            rel[o++] = '/';
+        memcpy(rel + o, s, len);
+        o += len;
+        s += len;
+    }
+    rel[o] = '\0';
+    if (path[0] != '/' || !o)
+        return -1;
+
+    /* The same place under the other layout: vendor/x <-> system/vendor/x */
+    char first[64], second[64];
+    char alt[PATH_MAX] = {0};
+    const char *slash = strchr(rel, '/');
+    snprintf(first, sizeof(first), "%.*s", (int)(slash ? (size_t)(slash - rel) : strlen(rel)), rel);
+    if (!strcmp(first, "system") && slash) {
+        const char *s2 = slash + 1, *sl2 = strchr(s2, '/');
+        snprintf(second, sizeof(second), "%.*s", (int)(sl2 ? (size_t)(sl2 - s2) : strlen(s2)), s2);
+        if (is_builtin_part(second))
+            snprintf(alt, sizeof(alt), "%s", s2);
+    } else if (is_builtin_part(first)) {
+        snprintf(alt, sizeof(alt), "system/%s", rel);
+    }
+
+    bool handled = !strcmp(first, "system") || is_builtin_part(first) || is_extra_part(ctx, first);
+
+    Node *root = build_mount_tree(ctx);
+    Node *node = root ? node_for_path(root, rel, alt[0] ? alt : NULL) : NULL;
+    if (node && node->type != NFT_DIRECTORY)
+        *winner = node->module_name;
+
+    const char *mdir = ctx->module_dir ? ctx->module_dir : DEFAULT_MODULE_DIR;
+    DIR *d = opendir(mdir);
+    if (!d) {
+        node_free(root);
+        return -1;
+    }
+
+    /* Every installed module, in id order: enabled ones are read where the
+     * next boot reads them (pending update), the others from their folder */
+    char **ids = NULL;
+    int ids_count = 0;
+    struct dirent *de;
+    while ((de = readdir(d))) {
+        char p[PATH_MAX];
+        if (de->d_name[0] != '.' && path_join(mdir, de->d_name, p, sizeof(p)) == 0 &&
+            path_is_dir(p))
+            str_array_append(&ids, &ids_count, de->d_name);
+    }
+    closedir(d);
+    for (int i = 1; i < ids_count; i++)
+        for (int j = i; j > 0 && strcmp(ids[j - 1], ids[j]) > 0; j--) {
+            char *t = ids[j];
+            ids[j] = ids[j - 1];
+            ids[j - 1] = t;
+        }
+
+    int found = 0;
+    for (int i = 0; i < ids_count; i++) {
+        const ModuleEntry *m = NULL;
+        for (int k = 0; k < ctx->modules_count; k++)
+            if (!strcmp(ctx->modules[k].id, ids[i]))
+                m = &ctx->modules[k];
+
+        char base[PATH_MAX], p[PATH_MAX];
+        if (m)
+            snprintf(base, sizeof(base), "%s", m->path);
+        else if (path_join(mdir, ids[i], base, sizeof(base)) != 0)
+            continue;
+
+        bool exists = false;
+        NodeFileType t = NFT_REGULAR;
+        if (path_join(base, rel, p, sizeof(p)) == 0)
+            t = path_type(p, &exists);
+        if (!exists && alt[0] && path_join(base, alt, p, sizeof(p)) == 0)
+            t = path_type(p, &exists);
+        if (!exists)
+            continue;
+
+        const char *status;
+        if (!m)
+            status = "off";
+        else if (!handled)
+            status = "unlisted";
+        else if (!node)
+            status = "not-mounted";
+        else if (node->type == NFT_DIRECTORY)
+            status = t == NFT_DIRECTORY ? "merged" : "ignored";
+        else
+            status = (node->module_name && !strcmp(node->module_name, ids[i])) ? "used" : "ignored";
+
+        fn(ids[i], status, t, m && m->pending, arg);
+        found++;
+    }
+
+    if (node && node->type == NFT_DIRECTORY && found)
+        *winner = "";
+    /* the winner's name lives in the tree; keep a copy before freeing it */
+    static char win_buf[256];
+    if (*winner && **winner) {
+        snprintf(win_buf, sizeof(win_buf), "%s", *winner);
+        *winner = win_buf;
+    }
+    str_array_free(&ids, &ids_count);
+    node_free(root);
+    return found;
 }

@@ -11,20 +11,26 @@ gone.
 
 ## Features
 
-- **Conflicts card** — shows which modules ship the same file and which copy
+- **Conflicts card** - shows which modules ship the same file and which copy
   is used, checked against what the next boot will mount. One tap makes the
-  other module win.
-- **Stable mount order** — preferred modules first, then by module ID, so the
+  other module win. It also warns when a module ships a folder for a
+  partition that is not in Extra partitions, with a button to add it.
+- **Find a file** - enter a path such as `/system/etc/hosts` to see every
+  module that ships it and which copy the next boot uses.
+- **Soft reboot** - after a soft reboot from the root manager, the previous
+  mounts are removed and everything is mounted again, so module changes apply
+  without a full reboot.
+- **Stable mount order** - preferred modules first, then by module ID, so the
   same module wins at every boot.
-- **Per-module switch** — stop mounting one module's files without disabling
+- **Per-module switch** - stop mounting one module's files without disabling
   it (its scripts, props and sepolicy still apply); survives module updates.
-- **Last boot card** — what was mounted, failures, and whether Magic Mount ran
+- **Last boot card** - what was mounted, failures, and whether Magic Mount ran
   during this boot at all.
 - **Logs, configuration and help** in the WebUI; everything is also plain
   text under `/data/adb/magic_mount`.
-- **KernelSU umount support** — mounts are registered so they can be removed
+- **KernelSU umount support** - mounts are registered so they can be removed
   for apps you choose in the manager.
-- **Safe by design** — runs once per boot, never blocks boot, and a problem
+- **Safe by design** - runs once per boot, never blocks boot, and a problem
   with one module does not stop the others.
 
 ## Install
@@ -57,13 +63,18 @@ in this order wins; the other copy is ignored and recorded as a conflict
 (`file`, `same`, `type`, `replace`). Conflicts are logged as warnings at boot.
 
 `mmd --dry-run` builds the same tree without mounting and prints a
-tab-separated report (`order`, `conflict`, `unreadable`, `result` lines). It
+tab-separated report (`order`, `conflict`, `unlisted`, `unreadable`, `result`
+lines; `unlisted` = a module folder for a partition that is mounted on the
+device as ext4 / erofs / f2fs but is not in `partitions=`). It
 reads installed updates from `modules_update/`, so it describes the next boot.
-The WebUI's Conflicts card is built from it. `mmd` is not on the system path;
-run it as root with the full path:
+The WebUI's Conflicts card is built from it. `mmd --which PATH` answers the
+same question for one path (`module <id> <used|ignored|merged|off|unlisted|not-mounted> <type> <installed|update>`
+lines and a `result` line); the Find a file card uses it. `mmd` is not on the
+system path; run it as root with the full path:
 
 ```sh
 su -c '/data/adb/modules/meta-mm/mmd --dry-run'
+su -c '/data/adb/modules/meta-mm/mmd --which /system/etc/hosts'
 su -c '/data/adb/modules/meta-mm/mmd --version'
 ```
 
@@ -72,16 +83,19 @@ are followed while collecting `system/`, so modules in either layout merge.
 
 ## What it does at boot (`metamount.sh`)
 
-0. Exits at once if `status` already belongs to this boot (once per boot).
+0. Exits at once if `status` already belongs to this boot (once per boot),
+   unless Android restarted on the same kernel (soft reboot, see below).
 1. Rotates `mm.log` to `mm.log.old` and, with it, copies `status` to
    `status.old` (so `status.old` always describes the boot that wrote
    `mm.log.old`; when the log is not rotated, `status.old` is removed).
-2. Re-applies the WebUI's "mounting off" choices (`skip_mount.list`) —
+2. Re-applies the WebUI's "mounting off" choices (`skip_mount.list`) -
    KernelSU drops `skip_mount` when a module is updated.
 3. Records what this boot sees: `boot_state` (every module: on / skip /
    disable / remove) and `boot_config` (copy of `mm.conf`).
-4. Runs `mmd`, then writes `status` (boot id, result, exit code, timing).
-5. Always exits 0 — a mount problem never blocks boot.
+4. Runs `mmd`, records the top-level mounts it made in `mounts`, then writes
+   `status` (boot id, result, exit code, timing). On KernelSU it always tells
+   ksud that modules are mounted, also after a failure.
+5. Always exits 0 - a mount problem never blocks boot.
 
 `service.sh` then waits for `sys.boot_completed=1` and a set clock (later than
 2026-01-01, the install time of the module and the previous boot's start;
@@ -91,6 +105,14 @@ uses it for the previous boot's "Written" time; file mtimes are useless because
 
 The WebUI compares the current files with these records, so it always knows
 which changes are still waiting for a reboot.
+
+**Soft reboot.** ksud runs `emulated-soft-reboot.sh` before stopping
+Android; it only leaves a mark. When `metamount.sh` then runs again with the
+same boot id, it mounts again only if `sys.boot_completed` is not 1, the
+`mounts` record belongs to this boot, and the recorded mounts are gone or
+(with the mark) could all be removed with `umount -l`. Otherwise it keeps the
+current mounts: module files are never mounted twice. `status` then has
+`soft_reboot=1`.
 
 ## Files
 
@@ -104,6 +126,7 @@ which changes are still waiting for a reboot.
 | `/data/adb/magic_mount/boot_state` | module states seen at the last run |
 | `/data/adb/magic_mount/boot_config` | config used at the last run |
 | `/data/adb/magic_mount/skip_mount.list` | modules switched off in the WebUI |
+| `/data/adb/magic_mount/mounts` | top-level mounts of the last run (removed again on soft reboot) |
 
 `skip_mount` files **not** on the list (shipped by a module author) are never
 touched by the scripts. Uninstalling Magic Mount removes only the
@@ -160,7 +183,7 @@ cd webui && pnpm test      # pure WebUI logic (src/lib/parse.js)
 WebUI development in a desktop browser with fake data:
 
 ```sh
-cd webui && pnpm install && pnpm dev    # http://localhost:5173/?mock=ok|pending|stale|failed|fresh|many|conflicts
+cd webui && pnpm install && pnpm dev    # http://localhost:5173/?mock=ok|pending|stale|failed|fresh|many|conflicts|unlisted|soft
 ```
 
 Pure logic lives in `webui/src/lib/parse.js` (no device access).

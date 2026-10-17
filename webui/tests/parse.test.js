@@ -13,6 +13,10 @@ import {
   parseDryRun,
   groupConflicts,
   preferModule,
+  groupUnlisted,
+  parseWhich,
+  isLookupPath,
+  addPartition,
   serializeConfig,
   validateConfig,
   parseOtherMounters,
@@ -28,6 +32,12 @@ const status = (extra = "") =>
   );
 const statusOld = (extra = "") =>
   parseStatus(`boot_id=${PREV}\nresult=ok\nexit_code=0\nstart_cs=700\nend_cs=725\n${extra}`);
+
+test("parseStatus marks a run after a soft reboot", () => {
+  assert.equal(status().softReboot, false);
+  assert.equal(status("soft_reboot=1\nboot_start=1790000000\n").softReboot, true);
+  assert.equal(status("soft_reboot=1\nboot_start=1790000000\n").bootStart, 1790000000);
+});
 
 test("parseUptime", () => {
   assert.equal(parseUptime("1234.56 2345.67\n"), 1234.56);
@@ -138,6 +148,76 @@ test("parseDryRun", () => {
   assert.deepEqual(r.unreadable, ["c-mod"]);
   assert.equal(parseDryRun("garbage"), null);
   assert.equal(parseDryRun(""), null);
+  assert.deepEqual(r.unlisted, [], "format 1 has no unlisted lines");
+});
+
+test("parseDryRun format 2: unlisted partitions", () => {
+  const r = parseDryRun(
+    [
+      "mmd-dry-run\t2\tv1.3.0",
+      "order\t1\ta-mod\tinstalled",
+      "unlisted\tmi_ext\ta-mod",
+      "unlisted\tbroken",
+      "some-future-line\tx",
+      "result\tok\t1\t0",
+    ].join("\n"),
+  );
+  assert.equal(r.result, "ok");
+  assert.deepEqual(r.unlisted, [{ partition: "mi_ext", id: "a-mod" }]);
+});
+
+test("parseWhich", () => {
+  const r = parseWhich(
+    [
+      "mmd-which\t1\tv1.3.0",
+      "path\t/system/etc/hosts",
+      "module\ta-mod\tused\tfile\tinstalled",
+      "module\tb-mod\tignored\tfile\tupdate",
+      "module\tbroken",
+      "future\tline",
+      "result\tused\ta-mod",
+    ].join("\n"),
+  );
+  assert.equal(r.result, "used");
+  assert.equal(r.winner, "a-mod");
+  assert.deepEqual(r.modules, [
+    { id: "a-mod", status: "used", type: "file", pending: false },
+    { id: "b-mod", status: "ignored", type: "file", pending: true },
+  ]);
+  assert.equal(parseWhich("mmd-which\t1\tv\nresult\tmerged\t-").winner, null);
+  assert.equal(parseWhich("mmd-which\t1\tv").result, "error");
+  assert.equal(parseWhich("garbage"), null);
+});
+
+test("isLookupPath", () => {
+  for (const ok of ["/system/etc/hosts", "/vendor/firmware/", "/mi_ext/x y"]) assert.ok(isLookupPath(ok), ok);
+  for (const bad of ["", "system/etc", "/", "/system/../etc", "/./x", "/a\nb", "x".repeat(2000)])
+    assert.ok(!isLookupPath(bad), JSON.stringify(bad).slice(0, 30));
+});
+
+test("groupUnlisted groups modules by partition", () => {
+  assert.deepEqual(
+    groupUnlisted([
+      { partition: "mi_ext", id: "a" },
+      { partition: "my_stock", id: "b" },
+      { partition: "mi_ext", id: "c" },
+      { partition: "mi_ext", id: "a" },
+    ]),
+    [
+      { partition: "mi_ext", ids: ["a", "c"] },
+      { partition: "my_stock", ids: ["b"] },
+    ],
+  );
+  assert.deepEqual(groupUnlisted(undefined), []);
+});
+
+test("addPartition appends once, refuses names mmd rejects", () => {
+  assert.deepEqual(addPartition([], "mi_ext"), ["mi_ext"]);
+  assert.deepEqual(addPartition(["my_stock"], "mi_ext"), ["my_stock", "mi_ext"]);
+  assert.deepEqual(addPartition(["mi_ext"], "mi_ext"), ["mi_ext"]);
+  assert.deepEqual(addPartition(undefined, "mi_ext"), ["mi_ext"]);
+  for (const bad of ["vendor", "system", "bin", "a/b", "", "x y"])
+    assert.deepEqual(addPartition(["mi_ext"], bad), ["mi_ext"], bad);
 });
 
 test("groupConflicts", () => {

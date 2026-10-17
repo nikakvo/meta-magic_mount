@@ -1,7 +1,7 @@
 <script>
   import { device } from "@lib/device.svelte.js";
   import { saveConfig } from "@lib/api.js";
-  import { groupConflicts, preferModule } from "@lib/parse.js";
+  import { addPartition, groupConflicts, groupUnlisted, preferModule } from "@lib/parse.js";
   import { t } from "@lib/strings.js";
 
   let saving = $state(false);
@@ -9,6 +9,7 @@
 
   const report = $derived(device.conflicts);
   const groups = $derived(groupConflicts(report?.conflicts));
+  const unlisted = $derived(groupUnlisted(report?.unlisted));
   const names = $derived(new Map(device.modules.map((m) => [m.id, m.name])));
   const name = (id) => names.get(id) || id;
   const priority = $derived(device.config.priority || []);
@@ -17,20 +18,24 @@
     report && !groups.pairs.length && !groups.replaces.length && !report.unreadable.length,
   );
 
-  async function setOrder(list) {
+  async function save(change, errorText) {
     if (saving) return;
     saving = true;
     saveError = null;
     try {
-      await saveConfig({ ...device.config, priority: list }, { omitUmount: apatch });
-      await device.refresh(); // re-runs the conflict check with the new order
+      await saveConfig({ ...device.config, ...change }, { omitUmount: apatch });
+      await device.refresh(); // re-runs the check with the new config
     } catch (e) {
       console.error(e);
-      saveError = t.conflicts.preferError;
+      saveError = errorText;
     } finally {
       saving = false;
     }
   }
+
+  const setOrder = (list) => save({ priority: list }, t.conflicts.preferError);
+  const mountPartition = (part) =>
+    save({ partitions: addPartition(device.config.partitions, part) }, t.conflicts.addPartitionError);
 </script>
 
 <section class="sheet" aria-busy={device.conflictsLoading}>
@@ -49,6 +54,25 @@
       </ul>
       <p class="help">{t.conflicts.othersHelp}</p>
     </div>
+  {/if}
+
+  {#if unlisted.length}
+    <ul class="cf-list">
+      {#each unlisted as u (u.partition)}
+        <li class="cf">
+          <p class="cf-head"><strong class="mono">{u.partition}/</strong> {t.conflicts.unlisted}</p>
+          <p class="help">{t.conflicts.unlistedBy(u.ids.map(name).join(", "))}</p>
+          <button
+            type="button"
+            class="btn cf-btn"
+            disabled={saving}
+            onclick={() => mountPartition(u.partition)}
+          >
+            {t.conflicts.addPartition(u.partition)}
+          </button>
+        </li>
+      {/each}
+    </ul>
   {/if}
 
   {#if device.conflictsError && !report}

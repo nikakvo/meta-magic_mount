@@ -15,6 +15,7 @@ import {
   serializeConfig,
   parseDryRun,
   parseOtherMounters,
+  parseWhich,
 } from "./parse.js";
 
 export const MODULE_ID = "meta-mm";
@@ -202,6 +203,15 @@ export async function readLog(logFile, previous = false) {
 // What the next boot will mount: mount order and conflicts from
 // `mmd --dry-run` (reads mm.conf itself, includes installed updates), plus
 // other installed modules that also mount module files.
+// mmd --which: which modules ship a path, which copy the next boot uses
+export async function whichPath(path) {
+  if (useMock) return (await mockApi()).whichPath(path);
+  const { errno, stdout } = await sh(`"${MODULE_PATH}/mmd" --which "${q(path)}" 2>/dev/null`);
+  const report = parseWhich(stdout);
+  if (!report || (errno !== 0 && report.result !== "error")) throw new Error("Lookup failed");
+  return report;
+}
+
 export async function checkConflicts(moduleDir) {
   if (useMock) return (await mockApi()).checkConflicts();
   const dir = q(moduleDir || DEFAULT_CONFIG.moduledir);

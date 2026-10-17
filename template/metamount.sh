@@ -10,8 +10,12 @@
 #   status.old  - the same record for the boot that wrote mm.log.old
 #   boot_state  - every module and whether it was mounted this boot
 #   boot_config - the configuration this boot used
+#   mounts      - the mounts mmd made this boot (to remove them again)
 #
-# It runs once per boot; a second call during the same boot does nothing.
+# It runs once per boot; a second call during the same boot does nothing,
+# except when Android itself restarts on the same kernel (soft reboot):
+# then the previous mounts are removed and everything is mounted again,
+# so module changes apply like after a full reboot. See may_run_again.
 # It never blocks boot: every path ends in "exit 0".
 ############################################
 
@@ -24,6 +28,8 @@ STATUS_OLD="$DATA_DIR/status.old"
 BOOT_STATE="$DATA_DIR/boot_state"
 BOOT_CONFIG="$DATA_DIR/boot_config"
 SKIP_LIST="$DATA_DIR/skip_mount.list"
+MOUNTS="$DATA_DIR/mounts"
+SOFT_MARK="$DATA_DIR/soft_reboot"
 
 log() {
     echo "[meta-mm] $*"
@@ -76,8 +82,54 @@ write_status() {
         echo "version=$MODULE_VERSION"
         echo "start_cs=$START_CS"
         echo "end_cs=$(uptime_cs)"
+        if [ "$AGAIN" = 1 ]; then
+            echo "soft_reboot=1"
+            # Same kernel boot, so the same start time: service.sh only
+            # adds it when missing
+            [ -n "$PREV_BOOT_START" ] && echo "boot_start=$PREV_BOOT_START"
+        fi
     } > "$_tmp" && mv -f "$_tmp" "$STATUS"
     chmod 0644 "$STATUS" 2>/dev/null
+}
+
+# Recorded mounts of this boot that are still in place, one
+# "<mount id><TAB><mount point>" per line, in the order they were made.
+mounts_present() {
+    awk -F'\t' 'NR == FNR { split($0, f, " "); live[f[1] " " f[5]] = 1; next }
+        FNR > 1 && (($1 " " $2) in live)' /proc/self/mountinfo "$MOUNTS" 2>/dev/null
+}
+
+# Same boot_id as the last run: mount again only when Android itself
+# restarted on the same kernel and the old mounts are gone, or are ours
+# to remove. Every other case keeps today's mounts (never a second set).
+may_run_again() {
+    if [ "$(getprop sys.boot_completed 2>/dev/null)" = "1" ]; then
+        log "Already ran during this boot, not mounting again"
+        return 1
+    fi
+    if [ "$(head -n 1 "$MOUNTS" 2>/dev/null)" != "boot_id=$BOOT_ID" ]; then
+        log "Android restarted, but this boot's mounts were not recorded; keeping them"
+        return 1
+    fi
+    _left="$(mounts_present)"
+    if [ -n "$_left" ]; then
+        if [ "$(cat "$SOFT_MARK" 2>/dev/null)" != "$BOOT_ID" ]; then
+            log "Android restarted, previous mounts are still in place; keeping them"
+            return 1
+        fi
+        log "Soft reboot: removing the previous mounts"
+        # newest first, so nested mounts go before their parents
+        echo "$_left" | sed -n '1!G;h;$p' | while IFS="$(printf '\t')" read -r _id _mp; do
+            umount -l "$_mp" 2>/dev/null || log "Could not unmount $_mp"
+        done
+        _left="$(mounts_present)"
+        if [ -n "$_left" ]; then
+            log "Soft reboot: $(echo "$_left" | wc -l) previous mounts could not be removed; keeping them"
+            return 1
+        fi
+    fi
+    log "Android restarted on the same kernel, mounting again"
+    return 0
 }
 
 mkdir -p "$DATA_DIR"
@@ -87,11 +139,19 @@ BOOT_ID="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
 
 # Once per boot. Running again (by hand, or by another tool calling this
 # script) would stack a second set of mounts over the first one.
+AGAIN=0
+PREV_BOOT_START=""
 if [ -n "$BOOT_ID" ] && [ -f "$STATUS" ] &&
     [ "$(sed -n 's/^boot_id=//p' "$STATUS" | head -n 1)" = "$BOOT_ID" ]; then
-    log "Already ran during this boot, not mounting again"
-    exit 0
+    if ! may_run_again; then
+        rm -f "$SOFT_MARK"
+        exit 0
+    fi
+    AGAIN=1
+    PREV_BOOT_START="$(sed -n 's/^boot_start=//p' "$STATUS" | head -n 1)"
 fi
+# The mark is only for the next run (written by emulated-soft-reboot.sh)
+rm -f "$SOFT_MARK"
 MODULE_VERSION="$(sed -n 's/^version=//p' "$MODDIR/module.prop" 2>/dev/null | head -n 1)"
 
 # Root implementation recorded at install time (KSU / APATCH)
@@ -175,14 +235,40 @@ fi
 
 log "Root: ${AOK:-unknown}, executing $BINARY"
 
+# Record which mounts mmd makes, so a soft reboot can remove them again
+MOUNTS_BEFORE="$DATA_DIR/.mounts_before"
+cut -d' ' -f1 /proc/self/mountinfo > "$MOUNTS_BEFORE" 2>/dev/null
+
 "$BINARY"
 EXIT_CODE=$?
 
+# Only the top-level ones: removing /system/bin also removes every mount
+# inside it (mmd mirrors each original file as its own bind mount).
+{
+    echo "boot_id=$BOOT_ID"
+    awk 'NR == FNR { seen[$1] = 1; next }
+        !($1 in seen) { n++; id[n] = $1; mp[n] = $5 }
+        END {
+            for (i = 1; i <= n; i++) {
+                top = 1
+                for (j = 1; j <= n; j++)
+                    if (j != i && index(mp[i], mp[j] "/") == 1) { top = 0; break }
+                if (top) print id[i] "\t" mp[i]
+            }
+        }' "$MOUNTS_BEFORE" /proc/self/mountinfo
+} > "$MOUNTS.tmp" 2>/dev/null && mv -f "$MOUNTS.tmp" "$MOUNTS"
+chmod 0644 "$MOUNTS" 2>/dev/null
+rm -f "$MOUNTS_BEFORE"
+
+# Tell KernelSU that mounting is done, also when mmd failed: a failure
+# can come after some mounts are already live, and KernelSU's per-app
+# umount stays off for the whole boot until it gets this call.
+# Only KernelSU's ksud knows this command.
+if [ "$AOK" != "APATCH" ] && [ -x /data/adb/ksud ]; then
+    /data/adb/ksud kernel notify-module-mounted
+fi
+
 if [ "$EXIT_CODE" = 0 ]; then
-    # Only KernelSU's ksud knows this command
-    if [ "$AOK" != "APATCH" ] && [ -x /data/adb/ksud ]; then
-        /data/adb/ksud kernel notify-module-mounted
-    fi
     write_status ok 0
     log "Mount completed successfully"
 else

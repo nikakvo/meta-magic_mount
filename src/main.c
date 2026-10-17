@@ -58,6 +58,8 @@ static void usage(const char *prog) {
             "      --no-umount           Do not register mounts for KernelSU umount\n"
             "  -n, --dry-run             Mount nothing; print the mount order and the\n"
             "                            conflicts the next boot will have\n"
+            "  -w, --which PATH          Mount nothing; show which modules ship PATH\n"
+            "                            and which one the next boot uses\n"
             "  -V, --version             Print the version\n"
             "  -h, --help                Show this help message\n"
             "\n"
@@ -221,16 +223,23 @@ static void print_summary(const MagicMount *ctx) {
     }
 }
 
+static void print_unlisted(const char *partition, const char *module_id, void *arg) {
+    (void)arg;
+    printf("unlisted\t%s\t%s\n", partition, module_id);
+}
+
 /* Machine-readable report for the WebUI, tab separated:
  *   order    <n> <id> <installed|update>
  *   conflict <kind> <path> <winner> <loser>
+ *   unlisted <partition> <id>   (folder for a partition not in partitions=)
  *   result   <ok|empty|error> <modules> <conflicts>
+ * MM_TEST_MOUNTINFO replaces /proc/self/mountinfo (tests only).
  */
 static int print_dry_run(MagicMount *ctx) {
     Node *root = build_mount_tree(ctx);
     bool error = !root && ctx->tree_error;
 
-    printf("mmd-dry-run\t1\t%s\n", VERSION);
+    printf("mmd-dry-run\t2\t%s\n", VERSION);
     for (int i = 0; i < ctx->modules_count; i++) {
         printf("order\t%d\t%s\t%s\n", i + 1, ctx->modules[i].id,
                ctx->modules[i].pending ? "update" : "installed");
@@ -242,12 +251,60 @@ static int print_dry_run(MagicMount *ctx) {
     }
     for (int i = 0; i < ctx->failed_modules_count; i++)
         printf("unreadable\t%s\n", ctx->failed_modules[i]);
+    const char *mountinfo = getenv("MM_TEST_MOUNTINFO");
+    unlisted_partitions_report(ctx, mountinfo && *mountinfo ? mountinfo : "/proc/self/mountinfo",
+                               print_unlisted, NULL);
     printf("result\t%s\t%d\t%d\n", error ? "error" : (root ? "ok" : "empty"), ctx->modules_count,
            ctx->conflicts_count);
     fflush(stdout);
 
     node_free(root);
     return error ? 1 : 0;
+}
+
+static const char *type_name(NodeFileType t) {
+    switch (t) {
+    case NFT_DIRECTORY:
+        return "folder";
+    case NFT_SYMLINK:
+        return "link";
+    case NFT_WHITEOUT:
+        return "whiteout";
+    default:
+        return "file";
+    }
+}
+
+static void print_which_module(const char *id, const char *status, NodeFileType type, bool pending,
+                               void *arg) {
+    (void)arg;
+    printf("module\t%s\t%s\t%s\t%s\n", id, status, type_name(type),
+           pending ? "update" : "installed");
+}
+
+/* Machine-readable answer for the WebUI, tab separated:
+ *   path    <normalized path>
+ *   module  <id> <used|ignored|merged|off|unlisted|not-mounted> <type> <installed|update>
+ *   result  <used|merged|none|error> <winner id or ->
+ */
+static int print_which(MagicMount *ctx, const char *path) {
+    const char *winner = NULL;
+
+    printf("mmd-which\t1\t%s\n", VERSION);
+    printf("path\t%s\n", path);
+    fflush(stdout);
+    int n = which_report(ctx, path, print_which_module, NULL, &winner);
+    if (n < 0) {
+        printf("result\terror\t-\n");
+        return 1;
+    }
+    if (winner && *winner)
+        printf("result\tused\t%s\n", winner);
+    else if (winner)
+        printf("result\tmerged\t-\n");
+    else
+        printf("result\tnone\t-\n");
+    return 0;
 }
 
 static void cleanup_resources(MagicMount *ctx) {
@@ -279,6 +336,7 @@ int main(int argc, char **argv) {
     bool cli_has_partitions = false;
     bool cli_has_priority = false;
     bool dry_run = false;
+    const char *which_path = NULL;
     int rc;
 
     magic_mount_init(&ctx);
@@ -293,6 +351,9 @@ int main(int argc, char **argv) {
             cli_log_path = argv[++i];
         } else if (is_opt(arg, "-n", "--dry-run")) {
             dry_run = true;
+        } else if (is_opt(arg, "-w", "--which") && i + 1 < argc) {
+            which_path = argv[++i];
+            dry_run = true; /* same rules: read only, never the boot log */
         } else if (is_opt(arg, "-V", "--version")) {
             printf("%s\n", VERSION);
             return 0;
@@ -340,6 +401,8 @@ int main(int argc, char **argv) {
             i++;
         } else if (is_opt(arg, "-n", "--dry-run")) {
             /* handled above */
+        } else if (is_opt(arg, "-w", "--which") && i + 1 < argc) {
+            i++; /* handled above */
         } else if (is_opt(arg, "-m", "--module-dir") && i + 1 < argc) {
             ctx.module_dir = argv[++i];
         } else if (is_opt(arg, "-t", "--temp-dir") && i + 1 < argc) {
@@ -371,7 +434,7 @@ int main(int argc, char **argv) {
 
     if (dry_run) {
         ctx.use_pending_updates = true;
-        rc = print_dry_run(&ctx);
+        rc = which_path ? print_which(&ctx, which_path) : print_dry_run(&ctx);
         cleanup_resources(&ctx);
         return rc;
     }

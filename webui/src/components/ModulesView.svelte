@@ -7,6 +7,7 @@
   import BootCard from "./BootCard.svelte";
   import Strata from "./Strata.svelte";
   import ConflictsCard from "./ConflictsCard.svelte";
+  import WhichCard from "./WhichCard.svelte";
 
   let busy = $state({});
   let errors = $state({});
@@ -118,5 +119,6 @@
 
   {#if device.overview}
     <ConflictsCard />
+    <WhichCard />
   {/if}
 </div>

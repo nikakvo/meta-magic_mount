@@ -82,7 +82,10 @@ mountify_hot_install() {
 	echo "- No need to reboot!"
 }
 
-if [ "$MODULE_HOT_INSTALL_REQUEST" = true ]; then
+# KernelSU / SukiSU-Ultra now do hot install themselves and export
+# KSU_HAS_HOT_INSTALL=true. Leave it to them, or both would move
+# modules_update/<id> at the same time.
+if [ "$KSU_HAS_HOT_INSTALL" != true ] && [ "$MODULE_HOT_INSTALL_REQUEST" = true ]; then
 	mountify_hot_install
 fi
 
