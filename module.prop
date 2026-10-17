@@ -1,9 +1,0 @@
-id=meta-mm
-metamodule=0
-name=Magic Mount
-version=v1.2.2
-versionCode=3
-author=7a72, Tears Burn
-description=Mounts the system files of your other modules at boot (Magic Mount metamodule).
-updateJson=https://raw.githubusercontent.com/nikakvo/meta-magic_mount/main/update.json
-banner=meta-magic-mount.png
