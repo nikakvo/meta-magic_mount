@@ -1,4 +1,4 @@
-<p align="center"><img src="meta-magic-mount.png" alt="Tears GPS"></p>
+<p align="center"><img src="meta-magic-mount.png" alt="Meta Magic Mount"></p>
 
 # Magic Mount (meta-mm)
 
