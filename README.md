@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="meta-magic-mount.png" alt="DNSCrypt Proxy Arm64" width="640">
+</p>
+
 # Magic Mount (meta-mm)
 
 A Magic Mount metamodule for KernelSU (and its forks) and APatch. At boot it
