@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="meta-magic-mount.png" alt="DNSCrypt Proxy Arm64" width="640">
-</p>
+<p align="center"><img src="meta-magic-mount.png" alt="Tears GPS"></p>
 
 # Magic Mount (meta-mm)
 
