@@ -39,8 +39,57 @@ export function q(s) {
   return String(s).replace(/(["\\$`])/g, "\\$1");
 }
 
-async function sh(cmd) {
-  const r = await exec(cmd);
+// A command whose answer never comes resolves with errno -2 after timeoutMs,
+// so the page never waits forever.
+function execTimed(cmd, timeoutMs) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(
+      () => resolve({ errno: -2, stdout: "", stderr: "No answer from the root shell" }),
+      timeoutMs,
+    );
+    exec(cmd).then(
+      (r) => {
+        clearTimeout(timer);
+        resolve(r);
+      },
+      (e) => {
+        clearTimeout(timer);
+        resolve({ errno: -1, stdout: "", stderr: String((e && e.message) || e) });
+      },
+    );
+  });
+}
+
+// On a quick reopen the root manager can run the page's first command before
+// it has registered the new page, and that answer never comes. So before the
+// first real call a harmless echo is sent a few times, a moment apart, and the
+// first answer means the page is registered. Only this echo is repeated,
+// never a real command.
+let readyPromise = null;
+function ready() {
+  readyPromise ??= new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    const ask = () => {
+      if (done) return;
+      execTimed("echo mm_ok", 15000).then((r) => {
+        if (r.errno === -1 || (r.stdout || "").includes("mm_ok")) finish();
+      });
+    };
+    [0, 400, 1000, 2000, 3500, 6000].forEach((t) => setTimeout(ask, t));
+    setTimeout(finish, 16000);
+  });
+  return readyPromise;
+}
+
+async function sh(cmd, timeoutMs = 60000) {
+  await ready();
+  const r = await execTimed(cmd, timeoutMs);
   return { errno: r.errno, stdout: r.stdout || "", stderr: r.stderr || "" };
 }
 

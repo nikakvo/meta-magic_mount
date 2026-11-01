@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.1
+
+- The WebUI opens reliably on a quick reopen, instead of sometimes staying empty until it is opened again.
+
+---
+
 ## v1.3.0
 
 - Find a file: see which modules ship a path and which copy the next boot uses.
