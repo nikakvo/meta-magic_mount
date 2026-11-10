@@ -1,6 +1,6 @@
 {
-  "version": "v1.3.1",
-  "versionCode": 5,
-  "zipUrl": "https://github.com/nikakvo/meta-magic_mount/releases/download/v1.3.1/meta-magic_mount-v1.3.1-release.zip",
+  "version": "v1.3.2",
+  "versionCode": 6,
+  "zipUrl": "https://github.com/nikakvo/meta-magic_mount/releases/download/v1.3.2/meta-magic_mount-v1.3.2-release.zip",
   "changelog": "https://raw.githubusercontent.com/nikakvo/meta-magic_mount/main/CHANGELOG.md"
 }

@@ -31,6 +31,12 @@ mm_handle_partition() {
 		return
 	fi
 	
+	# The module already ships <partition> itself: ln would put the link
+	# inside that folder (<partition>/<partition>) instead
+	if [ -e "$MODPATH/$partition" ] || [ -L "$MODPATH/$partition" ]; then
+		return
+	fi
+
 	if [ -L "/system/$partition" ] && [ -d "/$partition" ]; then
 		ui_print "- Handle partition /$partition"
 		ln -sf "./system/$partition" "$MODPATH/$partition"

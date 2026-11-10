@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2
+
+- Fixed: installing a module that ships both vendor/ and system/vendor/ no longer leaves a broken vendor/vendor link in its folder.
+- WebUI built with updated libraries.
+
+---
+
 ## v1.3.1
 
 - The WebUI opens reliably on a quick reopen, instead of sometimes staying empty until it is opened again.
